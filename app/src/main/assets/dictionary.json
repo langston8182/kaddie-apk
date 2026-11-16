@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "fruits_legumes",
+      "products": [
+        "Tomate|tomatte", "Tomate cerise", "Tomate grappe", "Tomate pelée|tomates en conserve", "Tomate concentrée|concentré de tomate|double concentré",
+        "Tomate coeur de boeuf", "Tomate séchée", "Carotte|carrote", "Pomme de terre|patate|patates|pdt", "Pomme de terre grenaille", "Patate douce",
+        "Oignon|ognon", "Oignon rouge", "Oignon blanc", "Oignon nouveau|cébette", "Échalote|echalotte", "Ail|gousse d'ail", "Poireau", "Courgette",
+        "Aubergine", "Poivron rouge", "Poivron vert", "Poivron jaune", "Poivron", "Concombre", "Salade|laitue", "Salade verte", "Mâche", "Roquette",
+        "Épinard|epinards", "Épinards frais", "Chou-fleur|choufleur", "Brocoli|brocolis", "Chou blanc", "Chou rouge", "Chou vert", "Chou de Bruxelles",
+        "Chou chinois", "Chou kale", "Champignon de Paris|champignons", "Champignon shiitake", "Girolle", "Cèpe", "Haricot vert|haricots verts",
+        "Petit pois|petits pois", "Pois gourmand", "Maïs|mais", "Betterave", "Céleri branche", "Céleri rave", "Fenouil", "Navet", "Radis", "Radis noir",
+        "Panais", "Potiron", "Citrouille", "Courge butternut|butternut", "Courge spaghetti", "Asperge", "Artichaut", "Endive", "Avocat", "Gingembre",
+        "Citron|citrons", "Citron vert|lime", "Orange", "Clémentine", "Mandarine", "Pamplemousse", "Pomme", "Pomme golden", "Pomme gala", "Pomme granny",
+        "Poire", "Banane", "Fraise", "Framboise", "Myrtille", "Mûre", "Cassis", "Groseille", "Cerise", "Abricot", "Pêche", "Nectarine", "Prune", "Mirabelle",
+        "Raisin blanc", "Raisin noir", "Raisin", "Melon", "Pastèque", "Ananas", "Mangue", "Kiwi", "Papaye", "Fruit de la passion|maracuja", "Grenade",
+        "Figue", "Datte", "Noix de coco", "Litchi", "Physalis", "Rhubarbe", "Coing", "Persimmon|kaki", "Persil", "Coriandre", "Basilic", "Menthe",
+        "Ciboulette", "Thym frais", "Romarin frais", "Aneth", "Cerfeuil", "Estragon", "Laurier", "Sauge", "Salade de fruits", "Jus de citron frais",
+        "Piment frais|piment", "Piment d'Espelette", "Haricot beurre", "Fève", "Topinambour", "Salsifis", "Rutabaga", "Cresson", "Pissenlit", "Mesclun",
+        "Salade iceberg|iceberg", "Salade batavia|batavia", "Chicorée", "Radicchio", "Pak choï|pak choi", "Germes de soja", "Pousses de bambou", "Tofu frais",
+        "Champignon pleurote|pleurotes", "Pomme de terre à purée", "Pomme de terre à frites", "Pomme de terre rattes|rattes", "Oignon grelot",
+        "Légumes pour pot-au-feu", "Légumes pour soupe", "Légumes grillés", "Ratatouille fraîche", "Guacamole frais", "Taboulé frais", "Carottes râpées",
+        "Céleri rémoulade", "Salade composée", "Crudités", "Fruits secs mélangés", "Abricot sec", "Pruneau", "Raisin sec", "Figue sèche"
+      ]
+    },
+    {
+      "id": "viandes_poissons",
+      "products": [
+        "Poulet|poulet entier", "Blanc de poulet|filet de poulet|escalope de poulet", "Cuisse de poulet", "Pilon de poulet", "Aile de poulet", "Poulet rôti",
+        "Dinde", "Escalope de dinde", "Filet de dinde", "Cuisse de dinde", "Canard", "Magret de canard", "Confit de canard", "Cuisse de canard", "Foie gras",
+        "Lapin", "Veau", "Escalope de veau", "Blanquette de veau", "Rôti de veau", "Côte de veau", "Osso buco", "Boeuf|bœuf", "Steak haché|steack haché",
+        "Steak", "Entrecôte", "Faux-filet|faux filet", "Rumsteck|rumsteak", "Bavette", "Onglet", "Filet de boeuf", "Rôti de boeuf", "Boeuf bourguignon",
+        "Boeuf à braiser", "Bœuf haché|viande hachée", "Côte de boeuf", "Joue de boeuf", "Paleron", "Hampe", "Tartare de boeuf", "Porc", "Filet mignon",
+        "Rôti de porc", "Côte de porc", "Échine de porc", "Travers de porc|ribs", "Sauté de porc", "Lard", "Lardons|lardon", "Poitrine fumée", "Poitrine de porc",
+        "Jambon blanc|jambon", "Jambon cru", "Jambon de Bayonne", "Jambon de Parme", "Jambon sec", "Saucisson sec|saucisson", "Saucisson à l'ail", "Chorizo",
+        "Rosette", "Coppa", "Mortadelle", "Bresaola", "Pâté de campagne|pâté", "Rillettes", "Terrine", "Saucisse de Strasbourg", "Saucisse de Toulouse",
+        "Saucisse de Francfort", "Merguez", "Chipolata", "Boudin noir", "Boudin blanc", "Andouillette", "Knacki", "Cervelas", "Agneau", "Gigot d'agneau",
+        "Côtelette d'agneau", "Souris d'agneau", "Épaule d'agneau", "Navarin", "Mouton", "Gibier", "Cheval", "Cordon bleu", "Nuggets de poulet", "Brochettes",
+        "Kebab", "Burger", "Steak de soja", "Saumon", "Pavé de saumon", "Saumon fumé", "Filet de saumon", "Cabillaud|cabillot", "Dos de cabillaud",
+        "Colin", "Lieu noir", "Merlu", "Truite", "Dorade", "Bar|loup de mer", "Sole", "Raie", "Thon frais", "Thon en boîte|thon", "Thon au naturel",
+        "Sardine", "Sardines en boîte", "Maquereau", "Maquereau fumé", "Hareng", "Hareng fumé", "Anchois", "Anchois en boîte", "Filet de poisson", "Poisson pané",
+        "Bâtonnets de surimi|surimi", "Crevette", "Crevettes décortiquées", "Gambas", "Langoustine", "Homard", "Crabe", "Moule|moules", "Moules marinières",
+        "Huître|huîtres", "Coquilles Saint-Jacques|noix de Saint-Jacques", "Saint-Jacques", "Calamar", "Encornet", "Poulpe", "Seiche", "Palourde", "Bulot", "Bigorneau",
+        "Oeufs de saumon", "Tarama", "Rollmops", "Brandade de morue", "Morue", "Haddock", "Poisson fumé", "Escalope panée", "Saucisse", "Poulet fumé"
+      ]
+    },
+    {
+      "id": "produits_laitiers",
+      "products": [
+        "Lait|lait demi-écrémé", "Lait entier", "Lait écrémé", "Lait sans lactose", "Lait d'amande", "Lait d'avoine", "Lait de soja", "Lait de coco",
+        "Lait de riz", "Lait concentré sucré", "Lait concentré non sucré", "Lait en poudre", "Lait fermenté", "Lait ribot", "Beurre", "Beurre doux", "Beurre demi-sel",
+        "Beurre salé", "Beurre clarifié", "Margarine", "Crème fraîche|crème", "Crème fraîche épaisse", "Crème fraîche légère", "Crème liquide", "Crème entière",
+        "Crème fleurette", "Crème de soja", "Crème d'avoine", "Chantilly", "Fromage blanc", "Fromage blanc 0%", "Faisselle", "Petit suisse|petits-suisses", "Skyr",
+        "Yaourt nature|yaourt|yogourt|yahourt", "Yaourt aux fruits", "Yaourt grec", "Yaourt à boire", "Yaourt brassé", "Yaourt vanille", "Yaourt au soja",
+        "Yaourt de brebis", "Crème dessert", "Danette", "Liégeois", "Flan", "Riz au lait", "Semoule au lait", "Mousse au chocolat", "Île flottante", "Oeufs|oeuf|œufs|œuf",
+        "Oeufs bio", "Oeufs plein air", "Gruyère râpé|gruyère", "Emmental", "Emmental râpé", "Comté", "Beaufort", "Cantal", "Salers", "Tomme", "Tomme de Savoie",
+        "Reblochon", "Raclette", "Fromage à raclette", "Fromage à fondue", "Mont d'Or", "Vacherin", "Morbier", "Munster", "Maroilles", "Époisses", "Camembert",
+        "Brie", "Brie de Meaux", "Coulommiers", "Chaource", "Neufchâtel", "Saint-Nectaire", "Saint-Marcellin", "Saint-Félicien", "Pont-l'Évêque", "Livarot",
+        "Roquefort", "Bleu d'Auvergne", "Fourme d'Ambert", "Gorgonzola", "Bleu", "Chèvre", "Fromage de chèvre", "Bûche de chèvre", "Crottin de chavignol|crottin",
+        "Sainte-Maure", "Rocamadour", "Picodon", "Feta", "Halloumi", "Mozzarella", "Mozzarella di bufala", "Burrata", "Ricotta", "Mascarpone", "Parmesan", "Parmigiano reggiano",
+        "Grana padano", "Pecorino", "Provolone", "Cheddar", "Edam", "Gouda", "Mimolette", "Port-Salut", "Babybel", "Vache qui rit", "Kiri", "Boursin", "Saint Môret",
+        "Philadelphia", "Fromage frais", "Fromage à tartiner", "Fromage râpé", "Fromage en tranches", "Tranches de fromage", "Cancoillotte", "Fromage fondu", "Cream cheese",
+        "Lait de chèvre", "Beurre de baratte", "Crème de marrons", "Kéfir", "Lassi", "Petits fromages frais", "Yaourt 0%"
+      ]
+    },
+    {
+      "id": "epicerie",
+      "products": [
+        "Pâtes|pates|pasta", "Spaghetti", "Spaghettis", "Tagliatelles", "Penne", "Fusilli", "Coquillettes", "Macaroni|macaronis", "Farfalle", "Rigatoni", "Torsades",
+        "Lasagnes|feuilles de lasagne", "Cannelloni", "Ravioli", "Tortellini", "Gnocchi", "Vermicelles", "Nouilles", "Nouilles chinoises", "Nouilles de riz", "Soba",
+        "Udon", "Pâtes complètes", "Pâtes fraîches", "Riz|riz blanc", "Riz basmati", "Riz thaï|riz thai", "Riz long", "Riz rond", "Riz complet", "Riz arborio",
+        "Riz pour risotto", "Riz sauvage", "Riz express", "Semoule|semoule de blé", "Semoule fine", "Semoule moyenne", "Couscous", "Boulgour", "Quinoa", "Millet",
+        "Polenta", "Blé", "Épeautre", "Sarrasin", "Lentilles|lentille", "Lentilles corail", "Lentilles vertes", "Pois chiches|pois chiche", "Haricots blancs",
+        "Haricots rouges", "Haricots secs", "Flageolets", "Fèves sèches", "Pois cassés", "Farine", "Farine de blé", "Farine T55", "Farine T45", "Farine complète",
+        "Farine de sarrasin", "Farine de seigle", "Farine de maïs", "Farine de riz", "Farine de pois chiche", "Fécule de maïs|maïzena|maizena", "Fécule de pomme de terre",
+        "Levure chimique", "Levure de boulanger", "Levure boulangère", "Bicarbonate de soude|bicarbonate", "Sucre|sucre blanc", "Sucre en poudre", "Sucre glace",
+        "Sucre roux", "Cassonade", "Sucre vanillé", "Sucre en morceaux", "Sucre de canne", "Miel", "Sirop d'érable", "Sirop d'agave", "Confiture", "Confiture de fraises",
+        "Confiture d'abricots", "Gelée de groseille", "Pâte à tartiner|nutella", "Beurre de cacahuète", "Purée d'amandes", "Chocolat noir", "Chocolat au lait",
+        "Chocolat blanc", "Chocolat pâtissier", "Chocolat en poudre", "Cacao en poudre|cacao", "Pépites de chocolat", "Tablette de chocolat", "Bonbons", "Réglisse",
+        "Caramel", "Guimauves", "Chewing-gum", "Biscuits", "Biscuits secs", "Biscuits apéritif", "Petit-beurre", "Palets bretons", "Sablés", "Cookies", "Speculoos",
+        "Gaufrettes", "Madeleines", "Gâteau", "Gâteaux secs", "Barres de céréales", "Céréales", "Céréales petit-déjeuner", "Corn flakes", "Muesli", "Granola",
+        "Flocons d'avoine", "Porridge", "Chocapic", "Pétales de maïs", "Pain d'épices", "Pain grillé", "Biscottes", "Cracottes", "Galettes de riz", "Chips|chip",
+        "Chips nature", "Chips au paprika", "Tortillas chips", "Pop-corn|popcorn", "Cacahuètes", "Cacahuètes grillées", "Amandes", "Amandes effilées", "Amandes en poudre",
+        "Noisettes", "Noix", "Noix de cajou", "Noix de pécan", "Pistaches", "Pignons de pin", "Graines de tournesol", "Graines de courge", "Graines de sésame", "Graines de lin",
+        "Graines de chia", "Mélange apéritif", "Olives vertes|olives", "Olives noires", "Olives", "Cornichons", "Câpres", "Huile d'olive", "Huile d'olive vierge extra",
+        "Huile de tournesol", "Huile de colza", "Huile de sésame", "Huile de coco", "Huile de noix", "Huile d'arachide", "Huile", "Vinaigre", "Vinaigre balsamique",
+        "Vinaigre de cidre", "Vinaigre de vin", "Vinaigre blanc ménager", "Moutarde|moutarde de Dijon", "Moutarde à l'ancienne", "Ketchup", "Mayonnaise", "Sauce soja",
+        "Sauce worcestershire", "Tabasco", "Sauce piquante", "Harissa", "Sauce tomate", "Coulis de tomates", "Passata", "Sauce bolognaise", "Sauce pesto|pesto", "Sauce barbecue",
+        "Sauce vinaigrette", "Vinaigrette", "Sauce César", "Sauce samouraï", "Sauce blanche", "Béchamel", "Sauce curry", "Sauce teriyaki", "Sauce huître", "Nuoc-mâm|nuoc mam",
+        "Sauce aigre-douce", "Sel|sel fin", "Gros sel", "Fleur de sel", "Sel de céleri", "Poivre|poivre moulu", "Poivre en grains", "Poivre blanc", "Poivre noir", "Paprika",
+        "Paprika fumé", "Curry", "Curcuma", "Cumin", "Cannelle", "Muscade", "Piment en poudre", "Piment de Cayenne", "Gingembre en poudre", "Herbes de Provence", "Thym",
+        "Romarin", "Origan", "Basilic séché", "Persil séché", "Laurier séché", "Sauge séchée", "Ras el hanout", "Quatre-épices", "Safran", "Cardamome", "Clou de girofle",
+        "Anis étoilé|badiane", "Vanille", "Gousse de vanille", "Extrait de vanille", "Arôme vanille", "Colorant alimentaire", "Bouillon de légumes", "Bouillon de boeuf",
+        "Bouillon de volaille", "Bouillon cube|cubes de bouillon", "Fond de veau", "Soupe", "Soupe de légumes", "Velouté", "Gaspacho", "Potage", "Conserve de tomates",
+        "Tomates pelées en boîte", "Maïs en boîte", "Haricots verts en boîte", "Petits pois en boîte", "Petits pois carottes", "Champignons en boîte", "Cœurs de palmier",
+        "Artichauts en boîte", "Fonds d'artichauts", "Haricots rouges en boîte", "Pois chiches en boîte", "Lentilles en boîte", "Flageolets en boîte", "Ravioli en boîte",
+        "Cassoulet", "Choucroute", "Chili con carne", "Plat cuisiné", "Pizza fraîche", "Pâte à pizza", "Pâte brisée", "Pâte feuilletée", "Pâte sablée", "Pâte à crêpes",
+        "Préparation pour gâteau", "Préparation crêpes", "Gélatine", "Agar-agar", "Pectine", "Compote|compote de pommes", "Compote pomme fraise", "Compote à boire",
+        "Fruits au sirop", "Pêches au sirop", "Ananas en boîte", "Salade de fruits en boîte", "Crème de marron", "Pâte d'amande", "Noix de coco râpée", "Fruits confits",
+        "Tapioca", "Tapenade", "Houmous|hummus", "Tzatziki", "Taboulé", "Wraps", "Tortillas", "Galettes de blé", "Crêpes", "Pain de mie", "Pain pita", "Galettes de maïs",
+        "Nems", "Samoussas", "Sushi", "Algues", "Wakamé", "Wasabi", "Gingembre mariné", "Tofu", "Tempeh", "Seitan", "Lait de coco en boîte", "Pâte de curry", "Concentré de légumes",
+        "Pâte de tomate", "Poivrons en bocal", "Oignons en bocal", "Cornichons en bocal", "Piccalilli", "Chutney", "Sauce chili", "Sriracha", "Ketchup bio", "Mayonnaise allégée",
+        "Café|café moulu", "Café en grains", "Café en dosettes|dosettes", "Capsules de café|capsules", "Café soluble", "Café décaféiné", "Chicorée soluble", "Thé|the", "Thé noir",
+        "Thé vert", "Thé à la menthe", "Infusion", "Tisane", "Tisane verveine", "Tisane camomille", "Tisane tilleul", "Rooibos", "Earl grey", "Chocolat chaud", "Ovomaltine",
+        "Nesquik", "Sirop de menthe", "Sirop de grenadine", "Sirop de fraise", "Sirop de citron", "Petits pots bébé", "Lait infantile", "Céréales bébé", "Biscuits bébé"
+      ]
+    },
+    {
+      "id": "boissons",
+      "products": [
+        "Eau|eau plate", "Eau minérale", "Eau gazeuse", "Eau pétillante", "Eau aromatisée", "Eau de source", "Eau de coco", "Evian", "Volvic", "Cristaline", "Vittel",
+        "Contrex", "Badoit", "San Pellegrino", "Perrier", "Vichy Saint-Yorre", "Orezza", "Coca-Cola|coca", "Coca zéro", "Pepsi", "Fanta", "Sprite", "Schweppes", "Orangina",
+        "Ice tea|thé glacé", "Limonade", "Citronnade", "Tonic", "Ginger ale", "Ginger beer", "Cola", "Soda", "Boisson énergisante", "Red Bull", "Boisson isotonique", "Jus d'orange",
+        "Jus d'orange pressé", "Jus de pomme", "Jus de raisin", "Jus d'ananas", "Jus de pamplemousse", "Jus de tomate", "Jus multifruits", "Jus de cranberry", "Jus de carotte",
+        "Jus de citron", "Nectar d'abricot", "Nectar de poire", "Smoothie", "Sirop", "Bière|biere", "Bière blonde", "Bière brune", "Bière blanche", "Bière ambrée", "Bière sans alcool",
+        "Panaché", "Cidre", "Cidre brut", "Cidre doux", "Poiré", "Vin rouge", "Vin blanc", "Vin rosé", "Vin pétillant", "Vin de cuisine", "Vin blanc de cuisine", "Champagne",
+        "Crémant", "Prosecco", "Cava", "Mousseux", "Porto", "Muscat", "Pastis", "Ricard", "Whisky", "Vodka", "Rhum", "Gin", "Tequila", "Cognac", "Armagnac", "Calvados", "Eau-de-vie",
+        "Liqueur", "Limoncello", "Amaretto", "Baileys", "Get 27", "Cointreau", "Grand Marnier", "Kir", "Martini", "Vermouth", "Sangria", "Cocktail sans alcool", "Lait chocolaté",
+        "Lait fraise", "Boisson végétale", "Kombucha", "Jus de légumes", "Cola sans sucre", "Eau pétillante citron", "Bag-in-box vin"
+      ]
+    },
+    {
+      "id": "surgeles",
+      "products": [
+        "Glace", "Glace vanille", "Glace chocolat", "Glace fraise", "Glace pistache", "Crème glacée", "Sorbet", "Sorbet citron", "Sorbet fraise", "Esquimau", "Cornet de glace", "Bâtonnets glacés",
+        "Pot de glace", "Bûche glacée", "Gâteau glacé", "Légumes surgelés", "Haricots verts surgelés", "Petits pois surgelés", "Épinards surgelés", "Brocolis surgelés", "Carottes surgelées",
+        "Poêlée de légumes", "Poêlée de champignons", "Mélange de légumes", "Purée surgelée", "Frites|frites surgelées", "Pommes de terre surgelées", "Croquettes de pommes de terre", "Pommes noisettes",
+        "Galettes de légumes", "Maïs surgelé", "Fruits rouges surgelés", "Framboises surgelées", "Fraises surgelées", "Mangue surgelée", "Mélange de fruits surgelés", "Poisson surgelé",
+        "Filets de poisson surgelés", "Cabillaud surgelé", "Saumon surgelé", "Crevettes surgelées", "Fruits de mer surgelés", "Paella surgelée", "Steaks surgelés", "Poulet surgelé", "Nuggets surgelés",
+        "Cordons bleus surgelés", "Pizza surgelée", "Pizza", "Quiche surgelée", "Tarte surgelée", "Pâte brisée surgelée", "Pâte feuilletée surgelée", "Lasagnes surgelées", "Hachis parmentier surgelé",
+        "Plat préparé surgelé", "Raviolis surgelés", "Nems surgelés", "Samoussas surgelés", "Beignets de calamars", "Croissants surgelés", "Pain surgelé", "Baguettes à garnir", "Glaçons", "Bacs à glaçons",
+        "Ail surgelé", "Persil surgelé", "Basilic surgelé", "Ciboulette surgelée", "Oignons surgelés", "Dés de poivrons surgelés", "Légumes pour wok", "Ratatouille surgelée", "Courgettes surgelées"
+      ]
+    },
+    {
+      "id": "boulangerie",
+      "products": [
+        "Pain|pains", "Baguette|baguettes", "Baguette tradition", "Baguette de campagne", "Pain de campagne", "Pain complet", "Pain aux céréales", "Pain de seigle", "Pain noir", "Pain au levain",
+        "Pain de mie", "Pain de mie complet", "Pain de mie sans croûte", "Pain brioché", "Pain burger", "Pain à hot-dog", "Petits pains", "Pain suédois", "Pain azyme", "Pain plat", "Pain naan", "Pain pita",
+        "Ficelle", "Flûte", "Bâtard", "Boule de pain", "Pain au chocolat", "Pain aux raisins", "Croissant|croissants", "Croissant au beurre", "Chausson aux pommes", "Brioche", "Brioche tressée", "Brioche vendéenne",
+        "Brioche tranchée", "Pain perdu", "Viennoiseries", "Danoise", "Palmier", "Éclair", "Éclair au chocolat", "Chou à la crème", "Religieuse", "Mille-feuille", "Tarte aux pommes", "Tarte au citron",
+        "Tarte aux fraises", "Tarte tatin", "Flan pâtissier", "Far breton", "Kouign-amann", "Paris-Brest", "Saint-Honoré", "Opéra", "Forêt noire", "Fraisier", "Framboisier", "Tiramisu", "Cheesecake",
+        "Gâteau au chocolat", "Gâteau au yaourt", "Quatre-quarts", "Cake", "Cake salé", "Muffin", "Cupcake", "Donut", "Beignet", "Gaufre", "Crêpe", "Macaron", "Meringue", "Financier", "Canelé",
+        "Gâteau d'anniversaire", "Galette des rois", "Bûche de Noël", "Part de gâteau", "Pâtisserie", "Chouquettes", "Tartelette", "Choux", "Sandwich", "Sandwich jambon-beurre", "Quiche", "Quiche lorraine",
+        "Pizza boulangère", "Friand", "Feuilleté", "Croque-monsieur", "Panini", "Wrap", "Bagel", "Focaccia", "Ciabatta", "Pain grillé en tranches", "Chapelure", "Croûtons", "Biscotte", "Pain rassis"
+      ]
+    },
+    {
+      "id": "hygiene",
+      "products": [
+        "Papier toilette|papier hygiénique", "Papier toilette humide", "Mouchoirs|mouchoirs en papier", "Boîte de mouchoirs", "Essuie-tout|sopalin", "Lingettes", "Lingettes bébé", "Coton|cotons", "Cotons-tiges|coton-tige",
+        "Disques démaquillants", "Démaquillant", "Lait démaquillant", "Eau micellaire", "Gel douche", "Savon|savons", "Savon liquide", "Savon de Marseille", "Savon pour les mains", "Shampoing|shampooing",
+        "Après-shampoing", "Masque capillaire", "Gel coiffant", "Laque", "Cire coiffante", "Colorant cheveux", "Brosse à cheveux", "Peigne", "Élastiques à cheveux", "Dentifrice", "Brosse à dents", "Brossettes interdentaires",
+        "Fil dentaire", "Bain de bouche", "Chewing-gum sans sucre", "Déodorant", "Déodorant roll-on", "Parfum", "Eau de toilette", "Crème hydratante", "Crème pour les mains", "Crème visage", "Crème de jour",
+        "Crème de nuit", "Crème solaire", "Après-soleil", "Lait corporel", "Huile pour le corps", "Baume à lèvres", "Rasoir|rasoirs", "Lames de rasoir", "Mousse à raser", "Gel à raser", "Après-rasage", "Tondeuse",
+        "Épilation|cire épilatoire", "Bandes de cire", "Pinces à épiler", "Serviettes hygiéniques", "Protège-slips", "Tampons", "Coupe menstruelle", "Couches|couches bébé", "Pansements", "Compresses", "Sparadrap",
+        "Désinfectant", "Alcool à 70°", "Eau oxygénée", "Bétadine", "Sérum physiologique", "Paracétamol", "Doliprane", "Ibuprofène", "Aspirine", "Vitamines", "Magnésium", "Thermomètre", "Masque chirurgical", "Gel hydroalcoolique",
+        "Préservatifs", "Test de grossesse", "Lentilles de contact", "Solution pour lentilles", "Gouttes pour les yeux", "Spray nasal", "Pastilles pour la gorge", "Sirop contre la toux", "Crème pour bébé", "Liniment",
+        "Talc", "Gel douche bébé", "Shampoing bébé", "Lime à ongles", "Vernis à ongles", "Dissolvant", "Coupe-ongles", "Maquillage", "Mascara", "Fond de teint", "Rouge à lèvres", "Crayon à yeux", "Poudre", "Parfum d'ambiance",
+        "Trousse de toilette", "Gant de toilette", "Éponge de bain", "Brosse à ongles", "Serviette de bain", "Cure-oreilles", "Spray anti-moustiques", "Stick anti-poux"
+      ]
+    },
+    {
+      "id": "entretien",
+      "products": [
+        "Liquide vaisselle", "Produit vaisselle", "Pastilles lave-vaisselle|tablettes lave-vaisselle", "Sel pour lave-vaisselle", "Liquide de rinçage", "Nettoyant lave-vaisselle", "Éponge|éponges", "Éponge grattante", "Éponge magique",
+        "Lessive", "Lessive liquide", "Lessive en poudre", "Lessive en capsules", "Capsules de lessive", "Adoucissant", "Détachant", "Javel|eau de javel", "Eau de javel", "Anticalcaire", "Vinaigre ménager",
+        "Cristaux de soude", "Bicarbonate ménager", "Nettoyant multi-surfaces", "Nettoyant sol", "Nettoyant vitres", "Nettoyant salle de bain", "Nettoyant cuisine", "Dégraissant", "Nettoyant four", "Nettoyant WC",
+        "Gel WC", "Bloc WC", "Désodorisant", "Désodorisant WC", "Bougie parfumée", "Bougie", "Allumettes", "Briquet", "Insecticide", "Anti-moustiques", "Anti-fourmis", "Raticide", "Raclette de sol", "Balai",
+        "Balai-brosse", "Serpillière", "Seau", "Pelle et balayette", "Aspirateur", "Sacs d'aspirateur", "Filtre aspirateur", "Chiffons", "Microfibres", "Lavettes", "Torchons", "Gants de ménage", "Papier aluminium", "Papier sulfurisé",
+        "Film alimentaire", "Sacs poubelle|sac poubelle", "Sacs poubelle 30L", "Sacs poubelle 50L", "Sacs congélation", "Sacs de congélation", "Sacs zip", "Boîtes de conservation", "Papier cuisson", "Filtres à café", "Essuie-mains",
+        "Piles|pile", "Piles AA", "Piles AAA", "Ampoule|ampoules", "Ampoule LED", "Multiprise", "Rallonge électrique", "Ruban adhésif", "Colle", "Scotch", "Ciseaux", "Trombones", "Stylos", "Cahier", "Enveloppes",
+        "Timbres", "Papier imprimante", "Cartouches d'encre", "Terreau", "Engrais", "Arrosoir", "Graines potagères", "Sac à dos", "Cintres", "Pinces à linge", "Fer à repasser", "Eau déminéralisée", "Spray repassage",
+        "Assouplissant", "Lessive main", "Produit pour sols", "Détergent", "Lave-glace", "Antigel"
+      ]
+    },
+    {
+      "id": "autres",
+      "products": [
+        "Croquettes chien", "Croquettes chat", "Pâtée chat", "Pâtée chien", "Litière chat|litière", "Os à ronger", "Friandises chien", "Friandises chat", "Graines oiseaux", "Nourriture poissons", "Collier antipuces",
+        "Jouet pour chien", "Jouet pour chat", "Fleurs|bouquet de fleurs", "Bouquet", "Plante verte", "Plante aromatique", "Carte d'anniversaire", "Papier cadeau", "Cadeau", "Ballons", "Bougies d'anniversaire",
+        "Assiettes en carton", "Gobelets en plastique", "Gobelets", "Couverts jetables", "Serviettes en papier|serviettes", "Nappe en papier", "Pailles", "Cure-dents", "Guirlandes", "Confettis", "Sapin de Noël",
+        "Décorations de Noël", "Calendrier de l'Avent", "Chocolats de Noël", "Oeufs de Pâques", "Cartes à jouer", "Puzzle", "Jeu de société", "Livre", "Magazine", "Journal", "Carte SIM", "Carte cadeau",
+        "Recharge téléphone", "Câble USB", "Chargeur", "Clé USB", "Carte mémoire", "Casque audio", "Pellicule photo", "Cadre photo", "Lampe de poche", "Parapluie", "Sac de courses", "Sac cabas", "Boîte à lunch",
+        "Gourde", "Thermos", "Boîte à sandwich", "Fournitures scolaires", "Cartable", "Trousse", "Crayons de couleur", "Feutres", "Gomme", "Taille-crayon", "Règle", "Classeur", "Pochettes plastiques",
+        "Vis", "Clous", "Chevilles", "Peinture", "Pinceau", "Rouleau de peinture", "Ruban de masquage", "Papier de verre", "Marteau", "Tournevis", "Perceuse", "Mèches", "Cadenas", "Clé", "Colle forte",
+        "Silicone", "Mastic", "Bâche", "Sac de ciment", "Planche", "Charbon de bois", "Allume-feu", "Barbecue", "Bois de chauffage", "Granulés de bois", "Bouteille de gaz", "Huile moteur", "Essuie-glace", "Produit lave-glace",
+        "Tapis de bain", "Rideau de douche", "Draps", "Housse de couette", "Oreiller", "Couverture", "Serviettes de plage", "Maillot de bain", "Chaussettes", "Collants", "Sous-vêtements", "T-shirt", "Pyjama"
+      ]
+    }
+  ]
+}

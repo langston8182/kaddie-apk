@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_background">#1B6B4A</color>
+    <style name="Theme.Kaddie.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/ic_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Kaddie</item>
+    </style>
+    <style name="Theme.Kaddie" parent="android:Theme.Material.NoActionBar" />
+</resources>
