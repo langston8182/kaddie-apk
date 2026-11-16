@@ -18,6 +18,8 @@ data class RemoteItem(
     val note: String,
     val createdAt: Long,
     val updatedAt: Long,
+    /** null when the server does not know the field (older API): the local value is kept. */
+    val isPinned: Boolean? = null,
 )
 
 data class RemoteProduct(
@@ -27,6 +29,16 @@ data class RemoteProduct(
     val createdAt: Long,
     val updatedAt: Long,
 )
+
+data class RemoteTemplateItem(
+    val productId: String,
+    val name: String,
+    val quantity: Double,
+    val unit: MeasureUnit,
+    val note: String,
+)
+
+data class RemoteTemplate(val id: String, val name: String, val items: List<RemoteTemplateItem>)
 
 data class RemoteAddItem(
     val id: String,
@@ -74,10 +86,14 @@ interface ShoppingRemoteDataSource {
 
     suspend fun fetchItems(listId: String, updatedSince: Long?): RemoteResult<List<RemoteItem>>
     suspend fun addItem(listId: String, item: RemoteAddItem): RemoteResult<AddItemOutcome>
-    suspend fun updateItem(listId: String, itemId: String, quantity: Double, unit: MeasureUnit, note: String): RemoteResult<RemoteItem>
+    suspend fun updateItem(listId: String, itemId: String, quantity: Double, unit: MeasureUnit, note: String, isPinned: Boolean): RemoteResult<RemoteItem>
     suspend fun setPurchased(listId: String, itemId: String, purchased: Boolean): RemoteResult<RemoteItem>
     suspend fun deleteItem(listId: String, itemId: String): RemoteResult<Unit>
 
     suspend fun fetchProducts(updatedSince: Long?): RemoteResult<List<RemoteProduct>>
     suspend fun upsertProduct(id: String, name: String, category: ProductCategory): RemoteResult<RemoteProduct>
+
+    suspend fun fetchTemplates(): RemoteResult<List<RemoteTemplate>>
+    suspend fun upsertTemplate(id: String, name: String, items: List<RemoteTemplateItem>): RemoteResult<RemoteTemplate>
+    suspend fun deleteTemplate(id: String): RemoteResult<Unit>
 }

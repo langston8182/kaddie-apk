@@ -12,6 +12,9 @@ import com.kaddie.app.data.repository.toDomain
 import com.kaddie.app.domain.model.Product
 import com.kaddie.app.domain.model.ShoppingItem
 import com.kaddie.app.domain.model.ShoppingList
+import com.kaddie.app.domain.sync.LocalItemRef
+import com.kaddie.app.domain.sync.Reconciliation
+import com.kaddie.app.domain.sync.Removals
 import com.kaddie.app.domain.sync.SyncOpType
 import com.kaddie.app.domain.sync.SyncOperation
 import com.kaddie.app.domain.sync.SyncStore
@@ -119,13 +122,13 @@ class RoomSyncStore(
                 if (remote.id in pending) continue
                 val local = lists.getItem(remote.id)
                 if (local != null) {
-                    if (remote.updatedAt > local.updatedAt) lists.updateItem(remote.toEntity(local.productId, listId))
+                    if (remote.updatedAt > local.updatedAt) lists.updateItem(remote.toEntity(local.productId, listId, local.isPinned))
                     continue
                 }
                 val productId = ensureProduct(remote)?.also { if (it.second) dictionaryChanged = true }?.first ?: continue
                 // Product already in the list under another item id: the local item wins.
                 if (lists.findItem(listId, productId) != null) continue
-                lists.insertItemIfAbsent(remote.toEntity(productId, listId))
+                lists.insertItemIfAbsent(remote.toEntity(productId, listId, false))
             }
         }
         if (dictionaryChanged) onDictionaryChanged()
@@ -137,6 +140,7 @@ class RoomSyncStore(
         val key = TextNormalizer.key(remote.name)
         if (key.isEmpty()) return null
         products.findByKey(key)?.let { return it.id to false }
+        products.findByAliasKey(key)?.let { return it.id to false }
         products.insertProduct(
             DictionaryProductEntity(
                 id = remote.productId,
@@ -152,12 +156,32 @@ class RoomSyncStore(
         return remote.productId to true
     }
 
+    override suspend fun applyRemovals(
+        knownRemoteIds: Set<String>,
+        remoteListIds: Set<String>,
+        remoteItemIdsByList: Map<String, Set<String>>,
+    ): Removals = db.withTransaction {
+        val pending = sync.pendingEntityIds().toSet() + sync.pendingParentIds().toSet()
+        val removals = Reconciliation.removals(
+            knownRemoteIds = knownRemoteIds,
+            pendingIds = pending,
+            localLists = lists.getAllLists().map { it.id },
+            localItems = lists.getAllItems().map { LocalItemRef(it.id, it.listId) },
+            remoteListIds = remoteListIds,
+            remoteItemIdsByList = remoteItemIdsByList,
+        )
+        removals.itemIds.forEach { lists.deleteItem(it) }
+        // Deleting a list also deletes its products (cascade).
+        removals.listIds.forEach { lists.deleteList(it) }
+        removals
+    }
+
     override fun observePendingCount(): Flow<Int> = sync.observeCount()
 
     override fun observeLastOperationId(): Flow<Long?> = sync.observeLastId()
 }
 
-private fun RemoteItem.toEntity(productId: String, listId: String) = ShoppingItemEntity(
+private fun RemoteItem.toEntity(productId: String, listId: String, localPinned: Boolean) = ShoppingItemEntity(
     id = id,
     listId = listId,
     productId = productId,
@@ -169,4 +193,5 @@ private fun RemoteItem.toEntity(productId: String, listId: String) = ShoppingIte
     note = note,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    isPinned = isPinned ?: localPinned,
 )

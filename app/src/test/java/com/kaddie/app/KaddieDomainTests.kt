@@ -156,6 +156,13 @@ class MatchingTests {
         assertEquals("Rat", (service.resolve("rat") as Resolution.Exact).product.name)
     }
 
+    @Test fun aBuiltInAliasBeatsAUserProductWithTheSameName() = runBlocking {
+        val dict = FakeDictionary(listOf(Triple("Yaourt nature", ProductCategory.PRODUITS_LAITIERS, listOf("yaourt"))))
+        val s = ProductMatchingService(dict)
+        s.createProduct("Yaourt") // e.g. created by a sync from a product unknown here
+        assertEquals("Yaourt nature", (s.resolve("yaourt") as Resolution.Exact).product.name)
+    }
+
     @Test fun unknownIsNotFoundAndCreationDeduplicates() = runBlocking {
         assertTrue(service.resolve("quinoa royal") is Resolution.NotFound)
         val created = service.createProduct("  quinoa  royal ")
@@ -274,5 +281,139 @@ class AddItemUseCaseTests {
         assertEquals(2.0, raised.purchasedQuantity, 0.0)
         val lowered = ItemRules.withEdit(base, 1.0, MeasureUnit.PIECE, "", 5)
         assertEquals(true, lowered.isPurchased)
+    }
+}
+
+class GroupingAndHabitualTests {
+    private fun item(id: String, productId: String) =
+        ShoppingItem(id, "l", productId, productId, 1.0, MeasureUnit.PIECE, 0.0, false, "", 0, 0)
+
+    @Test fun groupsByAisleInFixedOrderKeepingItemOrder() {
+        val categories = mapOf(
+            "lait" to ProductCategory.PRODUITS_LAITIERS,
+            "pomme" to ProductCategory.FRUITS_LEGUMES,
+            "tomate" to ProductCategory.FRUITS_LEGUMES,
+            "eau" to ProductCategory.BOISSONS,
+        )
+        val groups = com.kaddie.app.domain.usecase.ItemGrouping.byCategory(
+            listOf(item("1", "eau"), item("2", "lait"), item("3", "tomate"), item("4", "pomme"), item("5", "inconnu")),
+            categories,
+        )
+        assertEquals(
+            listOf(ProductCategory.FRUITS_LEGUMES, ProductCategory.PRODUITS_LAITIERS, ProductCategory.BOISSONS, ProductCategory.OTHER),
+            groups.map { it.category },
+        )
+        assertEquals(listOf("3", "4"), groups.first().items.map { it.id })
+        assertEquals(listOf("5"), groups.last().items.map { it.id })
+    }
+
+    @Test fun noItemsMeansNoGroups() {
+        assertTrue(com.kaddie.app.domain.usecase.ItemGrouping.byCategory(emptyList(), emptyMap()).isEmpty())
+    }
+
+    @Test fun frequentProductsAreOrderedByUsageAndExcludeUnusedAndInList() = runBlocking {
+        val service = ProductMatchingService(FakeDictionary(seed))
+        assertTrue(service.frequent(5).isEmpty()) // nothing used yet
+        repeat(3) { service.recordUsage("id-lait") }
+        repeat(2) { service.recordUsage("id-pain") }
+        service.recordUsage("id-carotte")
+
+        assertEquals(listOf("Lait", "Pain", "Carotte"), service.frequent(5).map { it.name })
+        assertEquals(listOf("Lait", "Pain"), service.frequent(2).map { it.name })
+        assertEquals(listOf("Pain", "Carotte"), service.frequent(5, setOf("id-lait")).map { it.name })
+    }
+}
+
+class ShareTextTests {
+    private fun item(id: String, productId: String, name: String, q: Double, unit: MeasureUnit = MeasureUnit.PIECE,
+                     bought: Double = 0.0, purchased: Boolean = false, note: String = "") =
+        ShoppingItem(id, "l", productId, name, q, unit, bought, purchased, note, 0, 0)
+
+    private val categories = mapOf("tomate" to ProductCategory.FRUITS_LEGUMES, "lait" to ProductCategory.PRODUITS_LAITIERS)
+
+    @Test fun groupedByAisleSkippingBoughtItems() {
+        val text = com.kaddie.app.ui.components.ShareText.format(
+            "Semaine",
+            listOf(
+                item("1", "lait", "Lait", 2.0, MeasureUnit.L, note = "bio"),
+                item("2", "tomate", "Tomate", 3.0),
+                item("3", "pain", "Pain", 1.0, bought = 1.0, purchased = true),
+            ),
+            categories,
+            groupByCategory = true,
+        )
+        assertEquals("🛒 Semaine\n\n🥬 Fruits et légumes\n• Tomate : 3 pièces\n\n🧀 Produits laitiers\n• Lait : 2 L (bio)", text)
+    }
+
+    @Test fun flatListAndPartialPurchaseShowsWhatRemains() {
+        val text = com.kaddie.app.ui.components.ShareText.format(
+            "Liste",
+            listOf(item("1", "oeuf", "Oeufs", 6.0, bought = 2.0)),
+            emptyMap(),
+            groupByCategory = false,
+        )
+        assertEquals("🛒 Liste\n\n• Oeufs : 4 pièces", text)
+    }
+
+    @Test fun everythingBoughtSaysSo() {
+        val text = com.kaddie.app.ui.components.ShareText.format(
+            "Liste", listOf(item("1", "pain", "Pain", 1.0, bought = 1.0, purchased = true)), emptyMap(), true,
+        )
+        assertEquals("🛒 Liste\n\nTout est acheté !", text)
+    }
+}
+
+class VoiceParserTests {
+    private fun parse(text: String) = com.kaddie.app.domain.voice.VoiceParser.parse(text).map { Triple(it.name, it.quantity, it.unit) }
+
+    @Test fun quantityUnitAndName() {
+        assertEquals(listOf(Triple("Tomates", 2.0, MeasureUnit.KG)), parse("deux kilos de tomates"))
+        assertEquals(listOf(Triple("Farine", 500.0, MeasureUnit.G)), parse("500 grammes de farine"))
+        assertEquals(listOf(Triple("Farine", 500.0, MeasureUnit.G)), parse("500g de farine"))
+        assertEquals(listOf(Triple("Lait", 1.5, MeasureUnit.L)), parse("1,5 litre de lait"))
+        assertEquals(listOf(Triple("Oeufs", 12.0, MeasureUnit.PIECE)), parse("une douzaine d'oeufs"))
+        assertEquals(listOf(Triple("Vin rouge", 3.0, MeasureUnit.BOTTLE)), parse("trois bouteilles de vin rouge"))
+        assertEquals(listOf(Triple("Coca", 330.0, MeasureUnit.ML)), parse("33 cl de coca"))
+    }
+
+    @Test fun defaultsToOnePieceAndStripsArticles() {
+        assertEquals(listOf(Triple("Lait", 1.0, MeasureUnit.PIECE)), parse("du lait"))
+        assertEquals(listOf(Triple("Pain", 1.0, MeasureUnit.PIECE)), parse("un pain"))
+        assertEquals(listOf(Triple("Pommes", 3.0, MeasureUnit.PIECE)), parse("3 pommes"))
+        assertEquals(listOf(Triple("Pomme de terre", 1.0, MeasureUnit.PIECE)), parse("pomme de terre"))
+    }
+
+    @Test fun severalProductsInOneSentence() {
+        assertEquals(
+            listOf(
+                Triple("Lait", 1.0, MeasureUnit.PIECE),
+                Triple("Tomates", 2.0, MeasureUnit.KG),
+                Triple("Farine", 500.0, MeasureUnit.G),
+            ),
+            parse("du lait, deux kilos de tomates et 500 g de farine"),
+        )
+    }
+
+    @Test fun ignoresNoise() {
+        assertTrue(parse("").isEmpty())
+        assertTrue(parse("  ,  et ").isEmpty())
+        assertTrue(parse("deux kilos de").isEmpty())
+    }
+}
+
+class PinningTests {
+    private val item = ShoppingItem("i", "l", "p", "Lait", 2.0, MeasureUnit.L, 0.0, false, "", 0, 0)
+
+    @Test fun pinningOnlyChangesThePin() {
+        val pinned = ItemRules.withPinned(item, true, 9)
+        assertEquals(true, pinned.isPinned)
+        assertEquals(2.0, pinned.quantity, 0.0)
+        assertEquals(false, ItemRules.withPinned(pinned, false, 10).isPinned)
+    }
+
+    @Test fun editKeepsOrChangesThePin() {
+        val pinned = item.copy(isPinned = true)
+        assertEquals(true, ItemRules.withEdit(pinned, 3.0, MeasureUnit.L, "", 5).isPinned)
+        assertEquals(false, ItemRules.withEdit(pinned, 3.0, MeasureUnit.L, "", 5, pinned = false).isPinned)
     }
 }

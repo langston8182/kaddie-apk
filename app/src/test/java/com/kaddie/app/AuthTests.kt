@@ -329,4 +329,73 @@ class RemoteErrorMappingTests {
         remote.fetchLists(1_794_823_200_000L)
         assertEquals("2026-11-16T10:00:00Z", server.takeRequest().url.queryParameter("updatedSince"))
     }
+
+    private val templateJson = """{"id":"t1","name":"Barbecue","items":[{"productId":"p1","name":"Saucisse","quantity":6,"unit":"PIECE","note":""},{"productId":"p2","name":"Lait","quantity":2,"unit":"L","note":"bio"}],"createdAt":"2026-11-16T10:00:00.000Z","updatedAt":"2026-11-16T10:00:00.000Z"}"""
+
+    @Test fun readsTemplatesWithTheirItems() = runBlocking {
+        respond(200, "[$templateJson]")
+        val templates = (remote.fetchTemplates() as RemoteResult.Success).value
+        assertEquals(1, templates.size)
+        assertEquals("Barbecue", templates[0].name)
+        assertEquals(listOf("Saucisse", "Lait"), templates[0].items.map { it.name })
+        assertEquals(MeasureUnit.L, templates[0].items[1].unit)
+        assertEquals("bio", templates[0].items[1].note)
+        val request = server.takeRequest()
+        assertEquals("/v1/templates", request.url.encodedPath)
+        assertEquals("Bearer access-1", request.headers["Authorization"])
+    }
+
+    @Test fun savesATemplateWithAPutAndItsItems() = runBlocking {
+        respond(201, templateJson)
+        val items = listOf(com.kaddie.app.data.remote.RemoteTemplateItem("p2", "Lait", 2.0, MeasureUnit.L, "bio"))
+        val result = remote.upsertTemplate("t1", "Barbecue", items) as RemoteResult.Success
+        assertEquals("t1", result.value.id)
+        val request = server.takeRequest()
+        assertEquals("PUT", request.method)
+        assertEquals("/v1/templates/t1", request.url.encodedPath)
+        val body = request.body?.utf8().orEmpty()
+        assertTrue(body.contains("\"name\":\"Barbecue\""))
+        assertTrue(body.contains("\"productId\":\"p2\"") && body.contains("\"unit\":\"L\""))
+    }
+
+    @Test fun deletesATemplateAndReportsServerRefusals() = runBlocking {
+        respond(204)
+        assertTrue(remote.deleteTemplate("t1") is RemoteResult.Success)
+        assertEquals("DELETE", server.takeRequest().method)
+
+        respond(409, """{"message":"Maximum 50 modèles"}""")
+        assertEquals(RemoteError.Conflict("Maximum 50 modèles"), (remote.upsertTemplate("t2", "x", emptyList()) as RemoteResult.Failure).error)
+        respond(404, """{"message":"Modèle non trouvé"}""")
+        assertEquals(RemoteError.NotFound, (remote.deleteTemplate("gone") as RemoteResult.Failure).error)
+    }
+
+    @Test fun templatesNeedTheNetwork() = runBlocking {
+        server.close()
+        assertTrue((remote.fetchTemplates() as RemoteResult.Failure).error is RemoteError.Network)
+    }
+}
+
+class PinnedMappingTests {
+    private val server = MockWebServer()
+    private val store = MemoryTokenStore(tokens())
+    private val auth = FakeAuth(TokenManager(store, FakeEndpoint { RefreshResult.TemporaryFailure }) { NOW })
+    private val remote by lazy { KaddieApiFactory.create(server.url("/v1/").toString(), auth) }
+
+    @Before fun setUp() = server.start()
+    @After fun tearDown() = server.close()
+
+    private fun item(extra: String) = """{"id":"i1","listId":"l1","productId":"p","name":"Lait","quantity":2,"unit":"L","purchasedQuantity":0,"isPurchased":false$extra,"note":"","createdAt":"2026-11-16T10:00:00.000Z","updatedAt":"2026-11-16T10:00:01.000Z"}"""
+
+    @Test fun readsThePinnedFlagAndToleratesOlderServers() = runBlocking {
+        server.enqueue(MockResponse.Builder().code(200).body("[${item(""","isPinned":true""")}]").build())
+        assertEquals(true, (remote.fetchItems("l1", null) as RemoteResult.Success).value[0].isPinned)
+        server.enqueue(MockResponse.Builder().code(200).body("[${item("")}]").build())
+        assertNull((remote.fetchItems("l1", null) as RemoteResult.Success).value[0].isPinned)
+    }
+
+    @Test fun sendsThePinnedFlagWithEdits() = runBlocking {
+        server.enqueue(MockResponse.Builder().code(200).body(item(""","isPinned":true""")).build())
+        remote.updateItem("l1", "i1", 2.0, MeasureUnit.L, "", true)
+        assertTrue(server.takeRequest().body?.utf8().orEmpty().contains("\"isPinned\":true"))
+    }
 }

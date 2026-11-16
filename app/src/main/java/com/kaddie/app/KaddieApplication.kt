@@ -15,6 +15,8 @@ import com.kaddie.app.data.remote.KaddieApiFactory
 import com.kaddie.app.data.remote.ShoppingRemoteDataSource
 import com.kaddie.app.data.repository.RoomProductDictionaryRepository
 import com.kaddie.app.data.repository.RoomShoppingListRepository
+import com.kaddie.app.data.repository.RemoteTemplateRepository
+import com.kaddie.app.domain.repository.TemplateRepository
 import com.kaddie.app.data.repository.RoomTransactionRunner
 import com.kaddie.app.data.settings.SettingsRepository
 import com.kaddie.app.data.sync.OutboxRecorder
@@ -66,6 +68,7 @@ class AppContainer(context: Context) {
         awaitReady = dictionaryInitializer::awaitReady,
     )
     val addItem = AddShoppingListItemUseCase(shoppingLists, matching, RoomTransactionRunner(database))
+    val templates: TemplateRepository = RemoteTemplateRepository(remoteDataSource, database, outbox, onDictionaryChanged = matching::invalidate)
 
     val syncStatus = SyncStatus()
     private val syncStore = RoomSyncStore(database, outbox, onDictionaryChanged = matching::invalidate)

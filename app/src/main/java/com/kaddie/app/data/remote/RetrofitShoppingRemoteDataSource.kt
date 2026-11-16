@@ -42,8 +42,8 @@ class RetrofitShoppingRemoteDataSource(
         AddItemOutcome(AddResult.entries.firstOrNull { r -> r.name == body.result } ?: AddResult.ADDED, body.item.toRemote())
     }
 
-    override suspend fun updateItem(listId: String, itemId: String, quantity: Double, unit: MeasureUnit, note: String) =
-        call({ api.updateItem(listId, itemId, EditItemBodyDto(quantity, unit.name, note)) }) { requireNotNull(it).toRemote() }
+    override suspend fun updateItem(listId: String, itemId: String, quantity: Double, unit: MeasureUnit, note: String, isPinned: Boolean) =
+        call({ api.updateItem(listId, itemId, EditItemBodyDto(quantity, unit.name, note, isPinned)) }) { requireNotNull(it).toRemote() }
 
     override suspend fun setPurchased(listId: String, itemId: String, purchased: Boolean) =
         call({ api.setPurchased(listId, itemId, PurchasedBodyDto(purchased)) }) { requireNotNull(it).toRemote() }
@@ -55,6 +55,14 @@ class RetrofitShoppingRemoteDataSource(
 
     override suspend fun upsertProduct(id: String, name: String, category: ProductCategory) =
         call({ api.upsertProduct(id, ProductBodyDto(name, category.code)) }) { requireNotNull(it).toRemote() }
+
+    override suspend fun fetchTemplates() =
+        call({ api.getTemplates() }) { body -> body.orEmpty().map { it.toRemote() } }
+
+    override suspend fun upsertTemplate(id: String, name: String, items: List<RemoteTemplateItem>) =
+        call({ api.upsertTemplate(id, TemplateBodyDto(name, items.map { it.toDto() })) }) { requireNotNull(it).toRemote() }
+
+    override suspend fun deleteTemplate(id: String) = call({ api.deleteTemplate(id) }) { }
 
     private suspend fun <D, T> call(block: suspend () -> Response<D>, map: (D?) -> T): RemoteResult<T> {
         val response = try {
@@ -116,7 +124,15 @@ private fun ItemDto.toRemote() = RemoteItem(
     note = note,
     createdAt = createdAt.toMillis(),
     updatedAt = updatedAt.toMillis(),
+    isPinned = isPinned,
 )
 
 private fun ProductDto.toRemote() =
     RemoteProduct(id, name, ProductCategory.fromCode(category), createdAt.toMillis(), updatedAt.toMillis())
+
+private fun TemplateItemDto.toRemote() =
+    RemoteTemplateItem(productId, name, quantity, MeasureUnit.fromCode(unit), note)
+
+private fun RemoteTemplateItem.toDto() = TemplateItemDto(productId, name, quantity, unit.name, note)
+
+private fun TemplateDto.toRemote() = RemoteTemplate(id, name, items.map { it.toRemote() })

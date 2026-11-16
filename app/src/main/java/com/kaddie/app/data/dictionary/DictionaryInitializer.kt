@@ -51,6 +51,7 @@ class DictionaryInitializer(
                     import(file)
                     prefs.edit().putInt(KEY_VERSION, file.version).apply()
                 }
+                db.productDao().deleteUnusedAliasDuplicates()
             }
             ready.complete(Unit)
         } catch (e: Exception) {

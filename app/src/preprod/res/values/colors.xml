@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Icône et écran de démarrage orange : distingue la préprod de la prod (vert). -->
+    <color name="ic_background">#E8710A</color>
+</resources>

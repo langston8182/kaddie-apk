@@ -25,23 +25,32 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
-
-        // Schéma de redirection OAuth (kaddie://auth/callback et kaddie://auth/logout), géré par AppAuth.
-        manifestPlaceholders["appAuthRedirectScheme"] = "kaddie"
-        buildConfigField("String", "COGNITO_REDIRECT_URI", "\"kaddie://auth/callback\"")
-        buildConfigField("String", "COGNITO_LOGOUT_URI", "\"kaddie://auth/logout\"")
     }
 
     flavorDimensions += "env"
     productFlavors {
         create("preprod") {
             dimension = "env"
+            // Installable à côté de la prod : identifiant, nom et schéma de redirection OAuth distincts.
+            applicationIdSuffix = ".preprod"
+            versionNameSuffix = "-preprod"
+            buildConfigField("boolean", "IS_PREPROD", "true")
+            manifestPlaceholders["appLabel"] = "Kaddie préprod"
+            manifestPlaceholders["appAuthRedirectScheme"] = "kaddie-preprod"
+            buildConfigField("String", "COGNITO_REDIRECT_URI", "\"kaddie-preprod://auth/callback\"")
+            buildConfigField("String", "COGNITO_LOGOUT_URI", "\"kaddie-preprod://auth/logout\"")
             buildConfigField("String", "API_BASE_URL", "\"https://kaddie-api-preprod.cyrilmarchive.com/v1/\"")
             buildConfigField("String", "COGNITO_DOMAIN", "\"https://kaddie-auth-preprod.cyrilmarchive.com\"")
             buildConfigField("String", "COGNITO_CLIENT_ID", "\"2828tgigt5ckmqn9oqoknhfac5\"")
         }
         create("prod") {
             dimension = "env"
+            buildConfigField("boolean", "IS_PREPROD", "false")
+            manifestPlaceholders["appLabel"] = "Kaddie"
+            // Redirections OAuth (kaddie://auth/callback et kaddie://auth/logout), gérées par AppAuth.
+            manifestPlaceholders["appAuthRedirectScheme"] = "kaddie"
+            buildConfigField("String", "COGNITO_REDIRECT_URI", "\"kaddie://auth/callback\"")
+            buildConfigField("String", "COGNITO_LOGOUT_URI", "\"kaddie://auth/logout\"")
             buildConfigField("String", "API_BASE_URL", "\"https://kaddie-api.cyrilmarchive.com/v1/\"")
             buildConfigField("String", "COGNITO_DOMAIN", "\"https://kaddie-auth.cyrilmarchive.com\"")
             buildConfigField("String", "COGNITO_CLIENT_ID", "\"1idl8aqbcettt4cr716n26i9sk\"")

@@ -84,6 +84,7 @@ data class ShoppingItemEntity(
     val note: String,
     val createdAt: Long,
     val updatedAt: Long,
+    @ColumnInfo(defaultValue = "0") val isPinned: Boolean = false,
 )
 
 /** Pending local write to push to the API, in insertion order. See [com.kaddie.app.domain.sync.SyncOperation]. */

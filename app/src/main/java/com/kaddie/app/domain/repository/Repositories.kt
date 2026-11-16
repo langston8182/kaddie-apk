@@ -1,5 +1,7 @@
 package com.kaddie.app.domain.repository
 
+import com.kaddie.app.data.remote.RemoteResult
+import com.kaddie.app.domain.model.ListTemplate
 import com.kaddie.app.domain.model.Product
 import com.kaddie.app.domain.model.ProductWithAliases
 import com.kaddie.app.domain.model.ShoppingItem
@@ -36,6 +38,18 @@ interface ShoppingListRepository {
     suspend fun clearPurchasedItems(listId: String)
     /** Puts every item back to "to buy", keeping the list for the next shopping trip. */
     suspend fun uncheckAllItems(listId: String)
+}
+
+/** Templates live on the server only (nothing is kept on the device); creating a list from one is local. */
+interface TemplateRepository {
+    suspend fun list(): RemoteResult<List<ListTemplate>>
+
+    /** Saves the products of a list (without their bought state) as a new template. */
+    suspend fun saveFromList(listId: String, name: String): RemoteResult<ListTemplate>
+    suspend fun delete(templateId: String): RemoteResult<Unit>
+
+    /** Creates a new local list named [name] with the template's products, all "to buy"; returns its id. */
+    suspend fun createListFromTemplate(template: ListTemplate, name: String): String
 }
 
 interface TransactionRunner {

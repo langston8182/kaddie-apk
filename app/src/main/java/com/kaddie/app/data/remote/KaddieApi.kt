@@ -28,6 +28,7 @@ data class ItemDto(
     val unit: String,
     val purchasedQuantity: Double = 0.0,
     val isPurchased: Boolean = false,
+    val isPinned: Boolean? = null,
     val note: String = "",
     val createdAt: String,
     val updatedAt: String,
@@ -48,7 +49,7 @@ data class AddItemBodyDto(
 data class AddItemResponseDto(val result: String, val item: ItemDto)
 
 @Serializable
-data class EditItemBodyDto(val quantity: Double, val unit: String, val note: String)
+data class EditItemBodyDto(val quantity: Double, val unit: String, val note: String, val isPinned: Boolean)
 
 @Serializable
 data class PurchasedBodyDto(val purchased: Boolean)
@@ -58,6 +59,21 @@ data class ProductBodyDto(val name: String, val category: String)
 
 @Serializable
 data class ProductDto(val id: String, val name: String, val category: String, val createdAt: String, val updatedAt: String)
+
+@Serializable
+data class TemplateItemDto(
+    val productId: String,
+    val name: String,
+    val quantity: Double,
+    val unit: String,
+    val note: String = "",
+)
+
+@Serializable
+data class TemplateDto(val id: String, val name: String, val items: List<TemplateItemDto> = emptyList())
+
+@Serializable
+data class TemplateBodyDto(val name: String, val items: List<TemplateItemDto>)
 
 @Serializable
 data class ErrorDto(val message: String? = null, val details: JsonElement? = null)
@@ -99,4 +115,13 @@ interface KaddieApi {
 
     @PUT("products/{id}")
     suspend fun upsertProduct(@Path("id") id: String, @Body body: ProductBodyDto): Response<ProductDto>
+
+    @GET("templates")
+    suspend fun getTemplates(): Response<List<TemplateDto>>
+
+    @PUT("templates/{id}")
+    suspend fun upsertTemplate(@Path("id") id: String, @Body body: TemplateBodyDto): Response<TemplateDto>
+
+    @DELETE("templates/{id}")
+    suspend fun deleteTemplate(@Path("id") id: String): Response<Unit>
 }

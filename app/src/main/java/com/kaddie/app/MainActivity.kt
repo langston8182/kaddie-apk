@@ -90,7 +90,7 @@ private fun KaddieNavHost(container: AppContainer) {
     NavHost(navController = navController, startDestination = "lists") {
         composable("lists") {
             val vm: ListsViewModel = viewModel(
-                factory = viewModelFactory { initializer { ListsViewModel(container.shoppingLists) } },
+                factory = viewModelFactory { initializer { ListsViewModel(container.shoppingLists, container.templates) } },
             )
             ListsScreen(
                 viewModel = vm,
@@ -121,6 +121,8 @@ private fun KaddieNavHost(container: AppContainer) {
                 viewModel = vm,
                 syncState = syncState,
                 onSyncNow = syncNow,
+                groupByCategory = settings.groupByCategory,
+                onGroupByCategory = container.settings::setGroupByCategory,
                 onBack = { navController.popBackStack() },
             )
         }

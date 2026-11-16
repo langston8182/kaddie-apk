@@ -30,6 +30,9 @@ interface SyncDao {
     @Query("SELECT DISTINCT entityId FROM sync_operations")
     suspend fun pendingEntityIds(): List<String>
 
+    @Query("SELECT DISTINCT parentId FROM sync_operations WHERE parentId IS NOT NULL")
+    suspend fun pendingParentIds(): List<String>
+
     @Query("UPDATE sync_operations SET entityId = :newId WHERE entityId = :oldId")
     suspend fun rekey(oldId: String, newId: String)
 
@@ -65,6 +68,23 @@ interface ProductDao {
 
     @Query("SELECT * FROM dictionary_products WHERE id = :id")
     suspend fun findById(id: String): DictionaryProductEntity?
+
+    @Query(
+        "SELECT p.* FROM dictionary_products p JOIN product_aliases a ON a.productId = p.id " +
+            "WHERE a.aliasKey = :key ORDER BY p.isUserDefined ASC LIMIT 1",
+    )
+    suspend fun findByAliasKey(key: String): DictionaryProductEntity?
+
+    /**
+     * Removes user products that only duplicate a built-in alias (e.g. "Yaourt" next to "Yaourt nature") and are
+     * used by no list. Such duplicates came from products received from the server that were unknown here.
+     */
+    @Query(
+        "DELETE FROM dictionary_products WHERE isUserDefined = 1 AND `key` IN (" +
+            "SELECT a.aliasKey FROM product_aliases a JOIN dictionary_products b ON b.id = a.productId WHERE b.isUserDefined = 0" +
+            ") AND id NOT IN (SELECT productId FROM shopping_items)",
+    )
+    suspend fun deleteUnusedAliasDuplicates(): Int
 
     @Query("SELECT * FROM dictionary_products WHERE isUserDefined = 1")
     suspend fun getUserDefined(): List<DictionaryProductEntity>

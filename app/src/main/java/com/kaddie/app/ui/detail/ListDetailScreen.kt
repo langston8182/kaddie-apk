@@ -7,7 +7,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +55,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Switch
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
@@ -61,7 +64,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.speech.RecognizerIntent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.AddShoppingCart
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.SuggestionChipDefaults
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -88,7 +110,10 @@ import com.kaddie.app.domain.model.MeasureUnit
 import com.kaddie.app.domain.model.ProductCategory
 import com.kaddie.app.domain.model.ShoppingItem
 import com.kaddie.app.domain.sync.SyncUiState
+import com.kaddie.app.ui.components.EnvironmentBadge
+import com.kaddie.app.ui.components.ShareText
 import com.kaddie.app.ui.components.SyncIndicator
+import com.kaddie.app.domain.usecase.ItemGrouping
 import com.kaddie.app.domain.usecase.UnitConflictResolution
 import com.kaddie.app.ui.components.UnitPicker
 import com.kaddie.app.ui.components.formatQuantity
@@ -101,6 +126,8 @@ fun ListDetailScreen(
     viewModel: ListDetailViewModel,
     syncState: SyncUiState,
     onSyncNow: () -> Unit,
+    groupByCategory: Boolean,
+    onGroupByCategory: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     val header by viewModel.header.collectAsStateWithLifecycle()
@@ -109,6 +136,23 @@ fun ListDetailScreen(
     val prompt by viewModel.prompt.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var editing by remember { mutableStateOf<ShoppingItem?>(null) }
+    val context = LocalContext.current
+    val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (result.resultCode == Activity.RESULT_OK && !spoken.isNullOrBlank()) viewModel.addFromVoice(spoken)
+    }
+    val startVoice = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Dites vos produits")
+        }
+        try {
+            voiceLauncher.launch(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(context, "La reconnaissance vocale n'est pas disponible sur cet appareil", Toast.LENGTH_LONG).show()
+        }
+    }
     var menuOpen by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
 
@@ -157,6 +201,7 @@ fun ListDetailScreen(
                     }
                 },
                 actions = {
+                    EnvironmentBadge()
                     SyncIndicator(syncState, onSyncNow)
                     if (!listItems.isNullOrEmpty()) {
                         Box {
@@ -164,6 +209,23 @@ fun ListDetailScreen(
                                 Icon(Icons.Filled.MoreVert, contentDescription = "Actions de la liste")
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Partager la liste") },
+                                    onClick = {
+                                        menuOpen = false
+                                        val text = ShareText.format(title, listItems.orEmpty(), categories, groupByCategory)
+                                        val send = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_SUBJECT, title)
+                                            putExtra(Intent.EXTRA_TEXT, text)
+                                        }
+                                        context.startActivity(Intent.createChooser(send, "Partager la liste"))
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (groupByCategory) "Afficher sans rayons" else "Regrouper par rayon") },
+                                    onClick = { menuOpen = false; onGroupByCategory(!groupByCategory) },
+                                )
                                 DropdownMenuItem(
                                     text = { Text("Tout décocher (réutiliser la liste)") },
                                     enabled = purchased.isNotEmpty(),
@@ -184,7 +246,7 @@ fun ListDetailScreen(
                 },
             )
         },
-        bottomBar = { AddBar(viewModel) },
+        bottomBar = { AddBar(viewModel, onVoice = startVoice) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
@@ -203,15 +265,39 @@ fun ListDetailScreen(
                     )
                 }
                 else -> LazyColumn(contentPadding = PaddingValues(bottom = 8.dp)) {
-                    items(toBuy, key = { it.id }) { item ->
+                    val row: @Composable (ShoppingItem, Modifier) -> Unit = { item, modifier ->
                         ItemRow(
                             item = item,
                             category = categories[item.productId],
                             onToggle = { viewModel.setPurchased(item, !item.isPurchased) },
                             onEdit = { editing = item },
+                            onTogglePin = { viewModel.togglePinned(item) },
                             onDelete = { viewModel.delete(item) },
-                            modifier = Modifier.animateItem(),
+                            modifier = modifier,
                         )
+                    }
+                    val pinnedItems = toBuy.filter { it.isPinned }
+                    val rest = toBuy.filter { !it.isPinned }
+                    if (pinnedItems.isNotEmpty()) {
+                        item(key = "pinned-header") {
+                            Text(
+                                "📌  Épinglés (${pinnedItems.size})",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp).animateItem(),
+                            )
+                        }
+                        items(pinnedItems, key = { it.id }) { item -> row(item, Modifier.animateItem()) }
+                    }
+                    if (groupByCategory) {
+                        ItemGrouping.byCategory(rest, categories).forEach { group ->
+                            item(key = "aisle-${group.category.code}") {
+                                AisleHeader(group.category, group.items.size, Modifier.animateItem())
+                            }
+                            items(group.items, key = { it.id }) { item -> row(item, Modifier.animateItem()) }
+                        }
+                    } else {
+                        items(rest, key = { it.id }) { item -> row(item, Modifier.animateItem()) }
                     }
                     if (purchased.isNotEmpty()) {
                         item(key = "purchased-header") {
@@ -222,16 +308,7 @@ fun ListDetailScreen(
                                 modifier = Modifier.padding(start = 16.dp, top = 20.dp, bottom = 4.dp).animateItem(),
                             )
                         }
-                        items(purchased, key = { it.id }) { item ->
-                            ItemRow(
-                                item = item,
-                                category = categories[item.productId],
-                                onToggle = { viewModel.setPurchased(item, !item.isPurchased) },
-                                onEdit = { editing = item },
-                                onDelete = { viewModel.delete(item) },
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
+                        items(purchased, key = { it.id }) { item -> row(item, Modifier.animateItem()) }
                     }
                 }
             }
@@ -256,9 +333,9 @@ fun ListDetailScreen(
         EditItemDialog(
             item = target,
             onDismiss = { editing = null },
-            onConfirm = { quantity, unit, note ->
+            onConfirm = { quantity, unit, note, pinned ->
                 editing = null
-                viewModel.edit(target, quantity, unit, note)
+                viewModel.edit(target, quantity, unit, note, pinned)
             },
         )
     }
@@ -309,11 +386,22 @@ fun ListDetailScreen(
 }
 
 @Composable
+private fun AisleHeader(category: ProductCategory, count: Int, modifier: Modifier = Modifier) {
+    Text(
+        text = "${ProductIcons.categoryIcon(category)}  ${category.label} ($count)",
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
 private fun ItemRow(
     item: ShoppingItem,
     category: ProductCategory?,
     onToggle: () -> Unit,
     onEdit: () -> Unit,
+    onTogglePin: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -343,7 +431,12 @@ private fun ItemRow(
             Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface)
-                .clickable(onClickLabel = "Modifier ${item.name}", onClick = onEdit)
+                .combinedClickable(
+                    onClickLabel = "Modifier ${item.name}",
+                    onClick = onEdit,
+                    onLongClickLabel = if (item.isPinned) "Désépingler ${item.name}" else "Épingler ${item.name} en haut",
+                    onLongClick = onTogglePin,
+                )
                 .heightIn(min = 64.dp)
                 .padding(start = 8.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -392,39 +485,72 @@ private fun ItemRow(
 }
 
 @Composable
-private fun AddBar(viewModel: ListDetailViewModel) {
+private fun AddBar(viewModel: ListDetailViewModel, onVoice: () -> Unit) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val quantity by viewModel.quantityText.collectAsStateWithLifecycle()
     val unit by viewModel.unit.collectAsStateWithLifecycle()
     val suggestions by viewModel.suggestions.collectAsStateWithLifecycle()
+    val habitual by viewModel.habitual.collectAsStateWithLifecycle()
     val focus = remember { FocusRequester() }
 
-    Surface(tonalElevation = 3.dp, shadowElevation = 6.dp) {
-        Column(Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
+    Surface(
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shadowElevation = 12.dp,
+    ) {
+        Column(Modifier.navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)) {
             AnimatedVisibility(
-                visible = suggestions.isNotEmpty(),
+                visible = suggestions.isNotEmpty() || habitual.isNotEmpty(),
                 enter = fadeIn(tween(120)) + expandVertically(tween(150)),
                 exit = fadeOut(tween(100)) + shrinkVertically(tween(120)),
             ) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 8.dp),
-                ) {
-                    items(suggestions, key = { it.product.id }) { suggestion ->
-                        SuggestionChip(
-                            onClick = { viewModel.submit(suggestion.product) },
-                            label = { Text("${ProductIcons.forName(suggestion.product.name, suggestion.product.category)}  ${suggestion.product.name}") },
+                Column(Modifier.padding(bottom = 12.dp)) {
+                    if (suggestions.isEmpty()) {
+                        Text(
+                            "Vos habituels",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp),
                         )
+                    }
+                    val products = if (suggestions.isNotEmpty()) suggestions.map { it.product } else habitual
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(products, key = { it.id }) { product ->
+                            SuggestionChip(
+                                onClick = { viewModel.submit(product) },
+                                shape = CircleShape,
+                                border = null,
+                                colors = SuggestionChipDefaults.suggestionChipColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                ),
+                                label = { Text("${ProductIcons.forName(product.name, product.category)}  ${product.name}") },
+                            )
+                        }
                     }
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
+                TextField(
                     value = query,
                     onValueChange = viewModel::onQueryChange,
                     modifier = Modifier.weight(1f).focusRequester(focus),
                     placeholder = { Text("Ajouter un produit…") },
+                    leadingIcon = { Icon(Icons.Filled.AddShoppingCart, contentDescription = null) },
+                    trailingIcon = {
+                        IconButton(onClick = onVoice) {
+                            Icon(Icons.Filled.Mic, contentDescription = "Ajouter par la voix", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    },
                     singleLine = true,
+                    shape = CircleShape,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                    ),
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Sentences,
                         autoCorrectEnabled = false,
@@ -433,28 +559,63 @@ private fun AddBar(viewModel: ListDetailViewModel) {
                     // Handling Done ourselves keeps the keyboard open for consecutive entries.
                     keyboardActions = KeyboardActions(onDone = { viewModel.submit() }),
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(10.dp))
                 FilledIconButton(
                     onClick = { viewModel.submit() },
                     enabled = query.isNotBlank(),
-                    modifier = Modifier.padding(4.dp),
+                    modifier = Modifier.size(54.dp),
+                    shape = CircleShape,
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Ajouter à la liste")
+                    Icon(Icons.Filled.Add, contentDescription = "Ajouter à la liste", modifier = Modifier.size(28.dp))
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                OutlinedTextField(
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
+                QuantityStepper(
                     value = quantity,
                     onValueChange = viewModel::onQuantityChange,
-                    modifier = Modifier.width(96.dp),
-                    label = { Text("Qté") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { viewModel.submit() }),
+                    onStep = viewModel::stepQuantity,
+                    onDone = { viewModel.submit() },
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(10.dp))
                 UnitPicker(selected = unit, onSelected = viewModel::onUnitChange)
             }
+        }
+    }
+}
+
+/** Compact − / quantity / + control; the number can also be typed (decimals allowed). */
+@Composable
+private fun QuantityStepper(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onStep: (Int) -> Unit,
+    onDone: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .height(44.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = { onStep(-1) }, modifier = Modifier.size(44.dp)) {
+            Icon(Icons.Filled.Remove, contentDescription = "Diminuer la quantité")
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.width(52.dp).semantics { contentDescription = "Quantité" },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.titleMedium.copy(
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
+        )
+        IconButton(onClick = { onStep(1) }, modifier = Modifier.size(44.dp)) {
+            Icon(Icons.Filled.Add, contentDescription = "Augmenter la quantité")
         }
     }
 }
@@ -463,8 +624,9 @@ private fun AddBar(viewModel: ListDetailViewModel) {
 private fun EditItemDialog(
     item: ShoppingItem,
     onDismiss: () -> Unit,
-    onConfirm: (Double, MeasureUnit, String) -> Unit,
+    onConfirm: (Double, MeasureUnit, String, Boolean) -> Unit,
 ) {
+    var pinned by remember { mutableStateOf(item.isPinned) }
     var quantityText by remember { mutableStateOf(formatQuantity(item.quantity)) }
     var unit by remember { mutableStateOf(item.unit) }
     var note by remember { mutableStateOf(item.note) }
@@ -495,10 +657,14 @@ private fun EditItemDialog(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("📌  Épingler en haut de la liste", Modifier.weight(1f))
+                    Switch(checked = pinned, onCheckedChange = { pinned = it })
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { quantity?.let { onConfirm(it, unit, note) } }, enabled = quantity != null) {
+            TextButton(onClick = { quantity?.let { onConfirm(it, unit, note, pinned) } }, enabled = quantity != null) {
                 Text("Enregistrer")
             }
         },

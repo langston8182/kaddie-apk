@@ -124,7 +124,7 @@ class RoomShoppingListRepository(
         dao.updateItem(item.toEntity())
         dao.touchList(item.listId, clock())
         val purchaseOnly = old != null && old.quantity == item.quantity && old.unit == item.unit.name &&
-            old.note == item.note && (item.purchasedQuantity == 0.0 || item.isPurchased)
+            old.note == item.note && old.isPinned == item.isPinned && (item.purchasedQuantity == 0.0 || item.isPurchased)
         outbox.record(if (purchaseOnly) SyncOpType.ITEM_PURCHASED else SyncOpType.ITEM_STATE, item.id, item.listId)
     }
 
@@ -179,6 +179,7 @@ internal fun ShoppingItemEntity.toDomain() = ShoppingItem(
     note = note,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    isPinned = isPinned,
 )
 
 internal fun ShoppingItem.toEntity() = ShoppingItemEntity(
@@ -193,6 +194,7 @@ internal fun ShoppingItem.toEntity() = ShoppingItemEntity(
     note = note,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    isPinned = isPinned,
 )
 
 internal fun DictionaryProductEntity.toDomain() = Product(

@@ -59,7 +59,7 @@ class SyncEngine(
                 // First sync of this account on this device: upload local data, pull everything.
                 prefs.userId = userId
                 prefs.seeded = false
-                prefs.listsCursor = null
+                prefs.knownRemoteIds = emptySet()
                 prefs.productsCursor = null
             }
             if (!prefs.seeded) {
@@ -172,7 +172,7 @@ class SyncEngine(
         val partial = bought > 0.0 && !item.isPurchased
         val firstQuantity = if (partial) bought else item.quantity
 
-        remote.updateItem(item.listId, item.id, firstQuantity, item.unit, item.note).let {
+        remote.updateItem(item.listId, item.id, firstQuantity, item.unit, item.note, item.isPinned).let {
             if (it is RemoteResult.Failure) return it.toStep()
         }
         if (bought <= 0.0) return Step.Done
@@ -180,7 +180,7 @@ class SyncEngine(
             if (it is RemoteResult.Failure) return it.toStep()
         }
         if (partial) {
-            remote.updateItem(item.listId, item.id, item.quantity, item.unit, item.note).let {
+            remote.updateItem(item.listId, item.id, item.quantity, item.unit, item.note, item.isPinned).let {
                 if (it is RemoteResult.Failure) return it.toStep()
             }
         }
@@ -202,9 +202,11 @@ class SyncEngine(
 
     // ---- pull ----
 
+    /**
+     * Reads everything the server has for this account (a few lists, a few dozen products): this is what makes
+     * deletions made on another device visible, which an incremental `updatedSince` read cannot do.
+     */
     private suspend fun pull(): Step {
-        val started = clock()
-
         val products = when (val r = remote.fetchProducts(prefs.productsCursor)) {
             is RemoteResult.Failure -> return r.toStep()
             is RemoteResult.Success -> r.value
@@ -212,35 +214,28 @@ class SyncEngine(
         store.applyRemoteProducts(products)
         val productsCursor = products.maxOfOrNull { it.updatedAt }
 
-        val previousListsCursor = prefs.listsCursor
-        val lists = when (val r = remote.fetchLists(previousListsCursor)) {
+        val lists = when (val r = remote.fetchLists(null)) {
             is RemoteResult.Failure -> return r.toStep()
             is RemoteResult.Success -> r.value
         }
-
-        val known = lists.associate { it.id to store.hasList(it.id) }
         store.applyRemoteLists(lists)
+        val itemIdsByList = mutableMapOf<String, Set<String>>()
         for (list in lists) {
-            // Items are written just before their list is touched: keep a margin so none is missed.
-            val since = if (known.getValue(list.id) && previousListsCursor != null) {
-                previousListsCursor - ITEMS_MARGIN_MS
-            } else {
-                null
-            }
-            when (val r = remote.fetchItems(list.id, since)) {
+            when (val r = remote.fetchItems(list.id, null)) {
                 is RemoteResult.Failure -> return r.toStep()
-                is RemoteResult.Success -> store.applyRemoteItems(list.id, r.value)
+                is RemoteResult.Success -> {
+                    store.applyRemoteItems(list.id, r.value)
+                    itemIdsByList[list.id] = r.value.map { it.id }.toSet()
+                }
             }
         }
 
-        // Cursors only move once everything was applied, and use server time (no clock skew).
+        // Only after a complete read: anything the server had before and no longer has was deleted elsewhere.
+        val remoteListIds = lists.map { it.id }.toSet()
+        store.applyRemovals(prefs.knownRemoteIds, remoteListIds, itemIdsByList)
+        prefs.knownRemoteIds = remoteListIds + itemIdsByList.values.flatten()
+        // The cursor only moves once everything was applied, and uses server time (no clock skew).
         productsCursor?.let { prefs.productsCursor = it }
-        lists.maxOfOrNull { it.updatedAt }?.let { prefs.listsCursor = it }
-        if (prefs.listsCursor == null) prefs.listsCursor = started - ITEMS_MARGIN_MS
         return Step.Done
-    }
-
-    private companion object {
-        const val ITEMS_MARGIN_MS = 5 * 60 * 1000L
     }
 }

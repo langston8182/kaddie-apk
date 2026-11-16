@@ -98,8 +98,11 @@ class ProductMatchingService(
         val qc = TextNormalizer.compact(qk)
         val all = entries()
 
-        val exact = all.filter { it.product.key == qk || it.compact == qc }
-            .ifEmpty { all.filter { e -> e.aliases.any { (k, c) -> k == qk || c == qc } } }
+        val byName = all.filter { it.product.key == qk || it.compact == qc }
+        val byAlias = all.filter { e -> e.aliases.any { (k, c) -> k == qk || c == qc } }
+        // A built-in alias ("yaourt" -> "Yaourt nature") wins over a user product that merely has the same name.
+        val builtinByAlias = byAlias.firstOrNull { !it.product.isUserDefined }
+        val exact = if (builtinByAlias != null && byName.all { it.product.isUserDefined }) listOf(builtinByAlias) else byName.ifEmpty { byAlias }
         if (exact.isNotEmpty()) {
             return Resolution.Exact(exact.maxBy { it.product.usageCount }.product)
         }
@@ -121,6 +124,13 @@ class ProductMatchingService(
 
     suspend fun getById(productId: String): Product? =
         entries().firstOrNull { it.product.id == productId }?.product
+
+    /** The most used products (at least one use), excluding [excludeIds], for one-tap adding. */
+    suspend fun frequent(limit: Int, excludeIds: Set<String> = emptySet()): List<Product> =
+        entries().map { it.product }
+            .filter { it.usageCount > 0 && it.id !in excludeIds }
+            .sortedWith(compareByDescending<Product> { it.usageCount }.thenBy { it.key })
+            .take(limit)
 
     /** Categories by product id, so list rows get the same pictogram fallback as the suggestions. */
     suspend fun categories(): Map<String, ProductCategory> = entries().associate { it.product.id to it.product.category }

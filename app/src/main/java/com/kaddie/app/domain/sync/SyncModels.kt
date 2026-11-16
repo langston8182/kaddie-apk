@@ -56,6 +56,16 @@ interface SyncStore {
     suspend fun applyRemoteLists(lists: List<RemoteList>)
     suspend fun applyRemoteItems(listId: String, items: List<RemoteItem>)
 
+    /**
+     * Deletes what disappeared from the server since the last full read (see [Reconciliation]); returns how many
+     * lists and products were removed.
+     */
+    suspend fun applyRemovals(
+        knownRemoteIds: Set<String>,
+        remoteListIds: Set<String>,
+        remoteItemIdsByList: Map<String, Set<String>>,
+    ): Removals
+
     fun observePendingCount(): Flow<Int>
     fun observeLastOperationId(): Flow<Long?>
 }
@@ -64,6 +74,7 @@ interface SyncPreferences {
     /** Account the local sync state (seeding, cursors) belongs to. */
     var userId: String?
     var seeded: Boolean
-    var listsCursor: Long?
+    /** Ids of lists and products the server had at the last complete read (to detect deletions elsewhere). */
+    var knownRemoteIds: Set<String>
     var productsCursor: Long?
 }

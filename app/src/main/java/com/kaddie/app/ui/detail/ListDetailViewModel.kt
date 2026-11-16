@@ -14,6 +14,8 @@ import com.kaddie.app.domain.usecase.AddItemResult
 import com.kaddie.app.domain.usecase.AddShoppingListItemUseCase
 import com.kaddie.app.domain.usecase.ItemRules
 import com.kaddie.app.domain.usecase.UnitConflictResolution
+import com.kaddie.app.domain.voice.VoiceParser
+import com.kaddie.app.ui.components.formatQuantity
 import com.kaddie.app.ui.components.formatQuantityWithUnit
 import com.kaddie.app.ui.components.parseQuantity
 import kotlinx.coroutines.channels.Channel
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -71,8 +74,27 @@ class ListDetailViewModel(
     val unit = MutableStateFlow(MeasureUnit.PIECE)
     val prompt = MutableStateFlow<Prompt?>(null)
 
+    /** Questions raised while adding several products by voice, asked one after the other. */
+    private val queuedPrompts = ArrayDeque<Prompt>()
+
+    private fun showPrompt(value: Prompt) {
+        if (prompt.value == null) prompt.value = value else queuedPrompts.addLast(value)
+    }
+
+    private fun nextPrompt() {
+        prompt.value = queuedPrompts.removeFirstOrNull()
+    }
+
     val suggestions: StateFlow<List<Suggestion>> = query
         .mapLatest { matching.suggest(it) }
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Most used products not already in the list, offered while the search field is empty. */
+    val habitual: StateFlow<List<Product>> = combine(query, items) { q, list -> q.isBlank() to list }
+        .mapLatest { (blank, list) ->
+            if (blank && list != null) matching.frequent(HABITUAL_LIMIT, list.map { it.productId }.toSet()) else emptyList()
+        }
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -82,6 +104,17 @@ class ListDetailViewModel(
 
     fun onQuantityChange(value: String) {
         quantityText.value = value.filter { it.isDigit() || it == ',' || it == '.' }.take(8)
+    }
+
+    /** +/- buttons: one piece at a time, half a kilo/litre, or 50 g/mL, never below one step. */
+    fun stepQuantity(direction: Int) {
+        val step = when (unit.value) {
+            MeasureUnit.KG, MeasureUnit.L -> 0.5
+            MeasureUnit.G, MeasureUnit.ML -> 50.0
+            else -> 1.0
+        }
+        val current = parseQuantity(quantityText.value) ?: 1.0
+        quantityText.value = formatQuantity((current + direction * step).coerceAtLeast(step))
     }
 
     fun onUnitChange(value: MeasureUnit) {
@@ -109,17 +142,17 @@ class ListDetailViewModel(
     }
 
     fun resolveCorrection(request: AddItemRequest, chosen: Product?) {
-        prompt.value = null
+        nextPrompt()
         execute(if (chosen != null) request.copy(productId = chosen.id) else request.copy(createAsNew = true))
     }
 
     fun resolveUnitConflict(request: AddItemRequest, resolution: UnitConflictResolution) {
-        prompt.value = null
+        nextPrompt()
         execute(request.copy(unitConflict = resolution))
     }
 
     fun dismissPrompt() {
-        prompt.value = null
+        nextPrompt()
     }
 
     private fun execute(request: AddItemRequest) {
@@ -141,13 +174,50 @@ class ListDetailViewModel(
                         messages.trySend(UiMessage("${result.item.name} : quantité inchangée"))
                     }
                     is AddItemResult.NeedsCorrection ->
-                        prompt.value = Prompt.Correction(result.request, result.candidates)
+                        showPrompt(Prompt.Correction(result.request, result.candidates))
                     is AddItemResult.NeedsUnitDecision ->
-                        prompt.value = Prompt.UnitConflict(result.request, result.existing)
+                        showPrompt(Prompt.UnitConflict(result.request, result.existing))
                     is AddItemResult.Invalid -> messages.trySend(UiMessage(result.reason))
                 }
             } catch (e: Exception) {
                 messages.trySend(UiMessage("Impossible d'ajouter le produit"))
+            }
+        }
+    }
+
+    /** Adds what was dictated ("deux kilos de tomates et du lait"); questions are queued, not lost. */
+    fun addFromVoice(text: String) {
+        val spoken = VoiceParser.parse(text)
+        if (spoken.isEmpty()) {
+            messages.trySend(UiMessage("Je n'ai pas compris. Essayez : « deux kilos de tomates »"))
+            return
+        }
+        viewModelScope.launch {
+            val added = mutableListOf<String>()
+            var needsAnswer = 0
+            for (item in spoken) {
+                try {
+                    when (val result = addItem(AddItemRequest(listId, item.name, item.quantity, item.unit))) {
+                        is AddItemResult.Added -> added += result.item.name
+                        is AddItemResult.Merged -> added += result.item.name
+                        is AddItemResult.Unchanged -> added += result.item.name
+                        is AddItemResult.NeedsCorrection -> {
+                            needsAnswer++
+                            showPrompt(Prompt.Correction(result.request, result.candidates))
+                        }
+                        is AddItemResult.NeedsUnitDecision -> {
+                            needsAnswer++
+                            showPrompt(Prompt.UnitConflict(result.request, result.existing))
+                        }
+                        is AddItemResult.Invalid -> Unit
+                    }
+                } catch (e: Exception) {
+                    messages.trySend(UiMessage("Impossible d'ajouter ${item.name}"))
+                }
+            }
+            if (added.isNotEmpty()) {
+                val summary = added.joinToString(", ")
+                messages.trySend(UiMessage(if (needsAnswer > 0) "Ajouté : $summary (à confirmer : $needsAnswer)" else "Ajouté : $summary"))
             }
         }
     }
@@ -162,10 +232,15 @@ class ListDetailViewModel(
         repository.updateItem(ItemRules.withPurchased(item, purchased, clock()))
     }
 
-    fun edit(item: ShoppingItem, quantity: Double, unit: MeasureUnit, note: String) =
+    fun edit(item: ShoppingItem, quantity: Double, unit: MeasureUnit, note: String, pinned: Boolean) =
         launchSafely("Modification impossible") {
-            repository.updateItem(ItemRules.withEdit(item, quantity, unit, note, clock()))
+            repository.updateItem(ItemRules.withEdit(item, quantity, unit, note, clock(), pinned))
         }
+
+    fun togglePinned(item: ShoppingItem) = launchSafely("Modification impossible") {
+        repository.updateItem(ItemRules.withPinned(item, !item.isPinned, clock()))
+        messages.trySend(UiMessage(if (item.isPinned) "${item.name} désépinglé" else "${item.name} épinglé en haut"))
+    }
 
     fun delete(item: ShoppingItem) = launchSafely("Suppression impossible") {
         repository.deleteItem(item.id)
@@ -199,5 +274,9 @@ class ListDetailViewModel(
                 messages.trySend(UiMessage(error))
             }
         }
+    }
+
+    private companion object {
+        const val HABITUAL_LIMIT = 8
     }
 }

@@ -86,7 +86,23 @@ data class ShoppingItem(
     val note: String,
     val createdAt: Long,
     val updatedAt: Long,
+    /** Pinned items are listed first, above the aisles. */
+    val isPinned: Boolean = false,
 ) {
     val remainingQuantity: Double get() = (quantity - purchasedQuantity).coerceAtLeast(0.0)
     val isPartiallyPurchased: Boolean get() = !isPurchased && purchasedQuantity > 0.0
+}
+
+/** A product of a template: what to add to a new list, without any "bought" state. */
+data class TemplateItem(
+    val productId: String,
+    val name: String,
+    val quantity: Double,
+    val unit: MeasureUnit,
+    val note: String,
+)
+
+/** A reusable list "recipe" (e.g. "Barbecue"), stored on the server. */
+data class ListTemplate(val id: String, val name: String, val items: List<TemplateItem>) {
+    val itemCount: Int get() = items.size
 }

@@ -31,9 +31,9 @@ class SharedPrefsSyncPreferences(context: Context) : SyncPreferences {
         get() = prefs.getBoolean(KEY_SEEDED, false)
         set(value) = prefs.edit().putBoolean(KEY_SEEDED, value).apply()
 
-    override var listsCursor: Long?
-        get() = prefs.getLong(KEY_LISTS, -1L).takeIf { it >= 0 }
-        set(value) = prefs.edit().apply { if (value == null) remove(KEY_LISTS) else putLong(KEY_LISTS, value) }.apply()
+    override var knownRemoteIds: Set<String>
+        get() = prefs.getStringSet(KEY_KNOWN, emptySet()).orEmpty().toSet()
+        set(value) = prefs.edit().putStringSet(KEY_KNOWN, value.toSet()).apply()
 
     override var productsCursor: Long?
         get() = prefs.getLong(KEY_PRODUCTS, -1L).takeIf { it >= 0 }
@@ -42,7 +42,7 @@ class SharedPrefsSyncPreferences(context: Context) : SyncPreferences {
     private companion object {
         const val KEY_SEEDED = "seeded"
         const val KEY_USER = "user_id"
-        const val KEY_LISTS = "lists_cursor"
+        const val KEY_KNOWN = "known_remote_ids"
         const val KEY_PRODUCTS = "products_cursor"
     }
 }

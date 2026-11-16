@@ -14,6 +14,7 @@ import com.kaddie.app.domain.model.Product
 import com.kaddie.app.domain.model.ProductCategory
 import com.kaddie.app.domain.model.ShoppingItem
 import com.kaddie.app.domain.model.ShoppingList
+import com.kaddie.app.domain.sync.LocalItemRef
 import com.kaddie.app.domain.sync.SyncEngine
 import com.kaddie.app.domain.sync.SyncIssue
 import com.kaddie.app.domain.sync.SyncOpType
@@ -38,7 +39,7 @@ import org.junit.Test
 private class FakePrefs : SyncPreferences {
     override var userId: String? = "user-1"
     override var seeded = true
-    override var listsCursor: Long? = null
+    override var knownRemoteIds: Set<String> = emptySet()
     override var productsCursor: Long? = null
 }
 
@@ -77,6 +78,15 @@ private class FakeStore : SyncStore {
         lists.forEach { this.lists[it.id] = ShoppingList(it.id, it.name, it.createdAt, it.updatedAt) }
     }
     override suspend fun applyRemoteItems(listId: String, items: List<RemoteItem>) { appliedItems[listId] = items }
+    var removalsCall: Triple<Set<String>, Set<String>, Map<String, Set<String>>>? = null
+    override suspend fun applyRemovals(
+        knownRemoteIds: Set<String>,
+        remoteListIds: Set<String>,
+        remoteItemIdsByList: Map<String, Set<String>>,
+    ): com.kaddie.app.domain.sync.Removals {
+        removalsCall = Triple(knownRemoteIds, remoteListIds, remoteItemIdsByList)
+        return com.kaddie.app.domain.sync.Removals(emptyList(), emptyList())
+    }
     override fun observePendingCount(): Flow<Int> = pending.map { ops.size }
     override fun observeLastOperationId(): Flow<Long?> = pending.map { ops.lastOrNull()?.id }
 }
@@ -147,7 +157,7 @@ private class FakeServer : ShoppingRemoteDataSource {
         }
     }
 
-    override suspend fun updateItem(listId: String, itemId: String, quantity: Double, unit: MeasureUnit, note: String) =
+    override suspend fun updateItem(listId: String, itemId: String, quantity: Double, unit: MeasureUnit, note: String, isPinned: Boolean) =
         fail("updateItem") {
             val item = items[itemId] ?: return notFound()
             val purchased = when {
@@ -156,7 +166,7 @@ private class FakeServer : ShoppingRemoteDataSource {
                 else -> item.purchasedQuantity.coerceAtMost(quantity)
             }
             val updated = item.copy(
-                quantity = quantity, unit = unit, note = note, purchasedQuantity = purchased,
+                quantity = quantity, unit = unit, note = note, purchasedQuantity = purchased, isPinned = isPinned,
                 isPurchased = QuantityMerger.isFullyPurchased(quantity, purchased),
             )
             items[itemId] = updated
@@ -174,6 +184,10 @@ private class FakeServer : ShoppingRemoteDataSource {
     override suspend fun fetchProducts(updatedSince: Long?) = fail("fetchProducts") { productsToPull }
     override suspend fun upsertProduct(id: String, name: String, category: ProductCategory) =
         fail("upsertProduct") { RemoteProduct(id, name, category, 1, 1) }
+    override suspend fun fetchTemplates() = fail("fetchTemplates") { emptyList<com.kaddie.app.data.remote.RemoteTemplate>() }
+    override suspend fun upsertTemplate(id: String, name: String, items: List<com.kaddie.app.data.remote.RemoteTemplateItem>) =
+        fail("upsertTemplate") { com.kaddie.app.data.remote.RemoteTemplate(id, name, items) }
+    override suspend fun deleteTemplate(id: String) = fail("deleteTemplate") { Unit }
 }
 
 class SyncEngineTests {
@@ -212,7 +226,7 @@ class SyncEngineTests {
     }
 
     @Test fun anotherAccountReseedsLocalDataAndPullsEverything() = runBlocking {
-        prefs.listsCursor = 123L
+        prefs.knownRemoteIds = setOf("old-list", "old-item")
         prefs.productsCursor = 456L
         userId = "user-2"
 
@@ -220,7 +234,8 @@ class SyncEngineTests {
 
         assertEquals(1, store.seedCalls)
         assertEquals("user-2", prefs.userId)
-        assertNull(prefs.listsCursor?.takeIf { it < 1_000L }) // old cursor dropped, a fresh one was set
+        assertEquals(emptySet<String>(), store.removalsCall?.first) // nothing of the previous account is "known"
+        assertNull(prefs.productsCursor)
     }
 
     private fun localList(id: String = "L1", name: String = "Courses") {
@@ -406,9 +421,8 @@ class SyncEngineTests {
         assertTrue(server.calls.containsAll(listOf("clearItems", "uncheckAll")))
     }
 
-    @Test fun pullsIncrementallyAndAdvancesCursors() = runBlocking {
+    @Test fun pullsEverythingAndAdvancesTheProductCursor() = runBlocking {
         localList("KNOWN", "Connue")
-        prefs.listsCursor = 900_000L
         prefs.productsCursor = 100L
         server.productsToPull = listOf(RemoteProduct("pp", "Kombucha", ProductCategory.BOISSONS, 1, 500))
         server.listsToPull = listOf(RemoteList("KNOWN", "Connue", 1, 950_000), RemoteList("NEW", "Nouvelle", 1, 970_000))
@@ -419,16 +433,117 @@ class SyncEngineTests {
         assertEquals(listOf("pp"), store.appliedProducts.map { it.id })
         assertEquals(setOf("KNOWN", "NEW"), store.appliedLists.map { it.id }.toSet())
         assertEquals(listOf("N1"), store.appliedItems.getValue("NEW").map { it.id })
-        assertEquals(900_000L - 5 * 60 * 1000L, server.itemSinceArgs["KNOWN"]) // known list: incremental, with margin
-        assertNull(server.itemSinceArgs["NEW"]) // new list: everything
-        assertEquals(970_000L, prefs.listsCursor)
+        // Full reads (no updatedSince), so that lists and products deleted elsewhere can be noticed.
+        assertNull(server.itemSinceArgs["KNOWN"])
+        assertNull(server.itemSinceArgs["NEW"])
         assertEquals(500L, prefs.productsCursor)
     }
 
-    @Test fun failedPullKeepsCursors() = runBlocking {
-        prefs.listsCursor = 5L
-        server.failures += "fetchLists" to RemoteError.Network(null)
+    @Test fun reportsWhatTheServerHasAndRemembersIt() = runBlocking {
+        prefs.knownRemoteIds = setOf("L1", "A", "B")
+        server.listsToPull = listOf(RemoteList("L1", "Courses", 1, 1))
+        server.itemsToPull = mapOf("L1" to listOf(RemoteItem("B", "L1", "p", "Pain", 1.0, MeasureUnit.PIECE, 0.0, false, "", 1, 1)))
+
+        engine.sync()
+
+        val call = store.removalsCall!!
+        assertEquals(setOf("L1", "A", "B"), call.first) // known before this read
+        assertEquals(setOf("L1"), call.second)
+        assertEquals(mapOf("L1" to setOf("B")), call.third)
+        assertEquals(setOf("L1", "B"), prefs.knownRemoteIds) // "A" is gone from the server now
+    }
+
+    @Test fun failedPullChangesNothing() = runBlocking {
+        prefs.knownRemoteIds = setOf("L1", "A")
+        prefs.productsCursor = 5L
+        server.listsToPull = listOf(RemoteList("L1", "Courses", 1, 1))
+        server.failures += "fetchItems" to RemoteError.Network(null)
+
         assertEquals(SyncOutcome.RETRY, engine.sync())
-        assertEquals(5L, prefs.listsCursor)
+
+        assertNull(store.removalsCall) // an incomplete read must never delete anything
+        assertEquals(setOf("L1", "A"), prefs.knownRemoteIds)
+        assertEquals(5L, prefs.productsCursor)
+    }
+}
+
+class ReconciliationTests {
+    private fun removals(
+        known: Set<String>,
+        pending: Set<String> = emptySet(),
+        lists: List<String>,
+        items: List<LocalItemRef> = emptyList(),
+        remoteLists: Set<String>,
+        remoteItems: Map<String, Set<String>> = emptyMap(),
+    ) = com.kaddie.app.domain.sync.Reconciliation.removals(known, pending, lists, items, remoteLists, remoteItems)
+
+    @Test fun anItemDeletedOnAnotherDeviceIsRemovedHere() {
+        val r = removals(
+            known = setOf("L", "lait", "yaourt"),
+            lists = listOf("L"),
+            items = listOf(LocalItemRef("lait", "L"), LocalItemRef("yaourt", "L")),
+            remoteLists = setOf("L"),
+            remoteItems = mapOf("L" to setOf("yaourt")),
+        )
+        assertEquals(listOf("lait"), r.itemIds)
+        assertTrue(r.listIds.isEmpty())
+    }
+
+    @Test fun aListDeletedElsewhereIsRemovedHere() {
+        val r = removals(
+            known = setOf("L", "lait"),
+            lists = listOf("L", "OTHER"),
+            items = listOf(LocalItemRef("lait", "L")),
+            remoteLists = setOf("OTHER"),
+        )
+        assertEquals(listOf("L"), r.listIds)
+        assertTrue(r.itemIds.isEmpty()) // its products go with it (cascade)
+    }
+
+    @Test fun neverSeenOnTheServerMeansNeverDeleted() {
+        // Created here and still unsent, or refused by the API: absent from the server but not deleted there.
+        val r = removals(
+            known = setOf("L"),
+            lists = listOf("L", "NEW"),
+            items = listOf(LocalItemRef("fresh", "L")),
+            remoteLists = setOf("L"),
+            remoteItems = mapOf("L" to emptySet()),
+        )
+        assertTrue(r.listIds.isEmpty())
+        assertTrue(r.itemIds.isEmpty())
+    }
+
+    @Test fun pendingLocalWritesAreKept() {
+        val r = removals(
+            known = setOf("L", "lait", "pain"),
+            pending = setOf("lait", "L2"),
+            lists = listOf("L", "L2"),
+            items = listOf(LocalItemRef("lait", "L"), LocalItemRef("pain", "L")),
+            remoteLists = setOf("L"),
+            remoteItems = mapOf("L" to emptySet()),
+        )
+        assertEquals(listOf("pain"), r.itemIds) // "lait" was changed offline: it wins
+        assertTrue(r.listIds.isEmpty()) // "L2" has a pending write
+    }
+
+    @Test fun nothingIsKnownOnTheFirstSyncSoNothingIsDeleted() {
+        val r = removals(
+            known = emptySet(),
+            lists = listOf("L"),
+            items = listOf(LocalItemRef("lait", "L")),
+            remoteLists = emptySet(),
+        )
+        assertTrue(r.listIds.isEmpty() && r.itemIds.isEmpty())
+    }
+
+    @Test fun itemsOfAListThatWasNotReadAreNotJudged() {
+        val r = removals(
+            known = setOf("L", "lait"),
+            lists = listOf("L"),
+            items = listOf(LocalItemRef("lait", "L")),
+            remoteLists = setOf("L"),
+            remoteItems = emptyMap(),
+        )
+        assertTrue(r.itemIds.isEmpty())
     }
 }

@@ -2,6 +2,9 @@ package com.kaddie.app.ui.lists
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
+import com.kaddie.app.domain.model.ListTemplate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -72,6 +76,7 @@ import com.kaddie.app.data.settings.AppSettings
 import com.kaddie.app.data.settings.ThemeMode
 import com.kaddie.app.domain.model.ShoppingListSummary
 import com.kaddie.app.domain.sync.SyncUiState
+import com.kaddie.app.ui.components.EnvironmentBadge
 import com.kaddie.app.ui.components.SyncIndicator
 
 @Composable
@@ -88,6 +93,8 @@ fun ListsScreen(
     onOpenList: (String) -> Unit,
 ) {
     val summaries by viewModel.summaries.collectAsStateWithLifecycle()
+    val templates by viewModel.templates.collectAsStateWithLifecycle()
+    var savingTemplate by remember { mutableStateOf<ShoppingListSummary?>(null) }
     val snackbar = remember { SnackbarHostState() }
     var showCreate by rememberSaveable { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<ShoppingListSummary?>(null) }
@@ -103,6 +110,7 @@ fun ListsScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Kaddie", style = MaterialTheme.typography.titleLarge) },
                 actions = {
+                    EnvironmentBadge()
                     SyncIndicator(syncState, onSyncNow)
                     IconButton(onClick = { showSettings = true }) {
                         Icon(Icons.Filled.Settings, contentDescription = "Apparence")
@@ -137,6 +145,7 @@ fun ListsScreen(
                                 onClick = { onOpenList(summary.list.id) },
                                 onRename = { renaming = summary },
                                 onDuplicate = { viewModel.duplicate(summary.list.id) },
+                                onSaveTemplate = { savingTemplate = summary },
                                 onDelete = { deleting = summary },
                             )
                         }
@@ -152,10 +161,27 @@ fun ListsScreen(
             title = "Nouvelle liste",
             confirmLabel = "Créer",
             initialName = "",
+            templates = templates,
+            onLoadTemplates = viewModel::refreshTemplates,
+            onDeleteTemplate = viewModel::deleteTemplate,
             onDismiss = { showCreate = false },
-            onConfirm = { name ->
+            onConfirm = { name, template ->
                 showCreate = false
-                viewModel.createList(name, onOpenList)
+                if (template != null) viewModel.createFromTemplate(template, name, onOpenList)
+                else viewModel.createList(name, onOpenList)
+            },
+        )
+    }
+    savingTemplate?.let { target ->
+        NameDialog(
+            title = "Enregistrer comme modèle",
+            confirmLabel = "Enregistrer",
+            initialName = target.list.name,
+            fieldLabel = "Nom du modèle",
+            onDismiss = { savingTemplate = null },
+            onConfirm = { name, _ ->
+                savingTemplate = null
+                viewModel.saveAsTemplate(target.list.id, name)
             },
         )
     }
@@ -165,7 +191,7 @@ fun ListsScreen(
             confirmLabel = "Renommer",
             initialName = target.list.name,
             onDismiss = { renaming = null },
-            onConfirm = { name ->
+            onConfirm = { name, _ ->
                 renaming = null
                 viewModel.rename(target.list.id, name)
             },
@@ -211,6 +237,7 @@ private fun ListCard(
     onClick: () -> Unit,
     onRename: () -> Unit,
     onDuplicate: () -> Unit,
+    onSaveTemplate: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
@@ -268,6 +295,12 @@ private fun ListCard(
                             onClick = { menu = false; onDuplicate() },
                         )
                         DropdownMenuItem(
+                            text = { Text("Enregistrer comme modèle") },
+                            leadingIcon = { Icon(Icons.Filled.BookmarkAdd, null) },
+                            enabled = summary.totalCount > 0,
+                            onClick = { menu = false; onSaveTemplate() },
+                        )
+                        DropdownMenuItem(
                             text = { Text("Supprimer") },
                             leadingIcon = { Icon(Icons.Filled.Delete, null) },
                             onClick = { menu = false; onDelete() },
@@ -294,29 +327,99 @@ private fun NameDialog(
     title: String,
     confirmLabel: String,
     initialName: String,
+    fieldLabel: String = "Nom de la liste",
+    templates: TemplatesState? = null,
+    onLoadTemplates: () -> Unit = {},
+    onDeleteTemplate: (String) -> Unit = {},
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
+    onConfirm: (name: String, template: ListTemplate?) -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf(initialName) }
+    var templateId by rememberSaveable { mutableStateOf<String?>(null) }
+    val loaded = (templates as? TemplatesState.Loaded)?.templates.orEmpty()
+    val selected = loaded.firstOrNull { it.id == templateId }
     val focus = remember { FocusRequester() }
     val valid = name.isNotBlank()
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    LaunchedEffect(Unit) {
+        focus.requestFocus()
+        if (templates != null) onLoadTemplates()
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it.take(60) },
-                label = { Text("Nom de la liste") },
-                placeholder = { Text("Courses de la semaine") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { if (valid) onConfirm(name) }),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus),
-            )
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(60) },
+                    label = { Text(fieldLabel) },
+                    placeholder = { Text("Courses de la semaine") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (valid) onConfirm(name, selected) }),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                )
+                if (templates is TemplatesState.Loading) {
+                    Text(
+                        "Chargement des modèles…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                }
+                if (templates is TemplatesState.Failed) {
+                    Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            templates.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = onLoadTemplates) { Text("Réessayer") }
+                    }
+                }
+                if (loaded.isNotEmpty()) {
+                    Text(
+                        "Partir d'un modèle",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+                    )
+                    loaded.forEach { template ->
+                        val isSelected = template.id == templateId
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .clip(MaterialTheme.shapes.small)
+                                .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                                .clickable {
+                                    templateId = if (isSelected) null else template.id
+                                    if (!isSelected && name.isBlank()) name = template.name
+                                }
+                                .padding(start = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(template.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "${template.itemCount} produit(s)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            IconButton(onClick = {
+                                if (isSelected) templateId = null
+                                onDeleteTemplate(template.id)
+                            }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Supprimer le modèle ${template.name}")
+                            }
+                        }
+                    }
+                }
+            }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(name) }, enabled = valid) { Text(confirmLabel) } },
+        confirmButton = { TextButton(onClick = { onConfirm(name, selected) }, enabled = valid) { Text(confirmLabel) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
     )
 }
