@@ -18,6 +18,7 @@ enum class SyncOpType {
     ITEM_PURCHASED,
     ITEM_DELETE,
     PRODUCT_UPSERT,
+    PRODUCT_DELETE,
 }
 
 /**

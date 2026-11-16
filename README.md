@@ -15,6 +15,7 @@ Application Android native (Kotlin, Jetpack Compose, Material 3) de gestion de l
 - Ajout rapide : suggestions dès 3 caractères (5 maximum), clavier maintenu ouvert après chaque ajout.
 - Dictionnaire local d'environ 1 000 produits (`app/src/main/assets/dictionary.json`), enrichi automatiquement ; les produits de l'utilisateur sont conservés lors des mises à jour.
 - Recherche tolérante : casse, accents, pluriels, tirets/espaces, fautes de frappe (Damerau-Levenshtein). Aucune fusion automatique sur une correspondance incertaine.
+- Produits perso erronés : un appui long sur une suggestion de produit personnel propose de le supprimer du dictionnaire (confirmation ; refusé tant qu'une liste l'utilise, jamais possible pour un produit du dictionnaire de base). La suppression est aussi envoyée à l'API (`DELETE /v1/products/{id}`).
 - Fusion des doublons avec conversion d'unités (500 g + 1 kg = 1,5 kg) et choix en cas d'unités incompatibles.
 - Thème clair / sombre / dynamique.
 

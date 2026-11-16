@@ -92,6 +92,7 @@ interface ShoppingRemoteDataSource {
 
     suspend fun fetchProducts(updatedSince: Long?): RemoteResult<List<RemoteProduct>>
     suspend fun upsertProduct(id: String, name: String, category: ProductCategory): RemoteResult<RemoteProduct>
+    suspend fun deleteProduct(id: String): RemoteResult<Unit>
 
     suspend fun fetchTemplates(): RemoteResult<List<RemoteTemplate>>
     suspend fun upsertTemplate(id: String, name: String, items: List<RemoteTemplateItem>): RemoteResult<RemoteTemplate>

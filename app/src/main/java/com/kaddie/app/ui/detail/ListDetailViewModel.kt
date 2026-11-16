@@ -9,6 +9,7 @@ import com.kaddie.app.domain.model.Product
 import com.kaddie.app.domain.model.ProductCategory
 import com.kaddie.app.domain.model.ShoppingItem
 import com.kaddie.app.domain.repository.ShoppingListRepository
+import com.kaddie.app.domain.repository.DeleteProductResult
 import com.kaddie.app.domain.usecase.AddItemRequest
 import com.kaddie.app.domain.usecase.AddItemResult
 import com.kaddie.app.domain.usecase.AddShoppingListItemUseCase
@@ -119,6 +120,27 @@ class ListDetailViewModel(
 
     fun onUnitChange(value: MeasureUnit) {
         unit.value = value
+    }
+
+    fun deleteProduct(product: Product) {
+        viewModelScope.launch {
+            val message = try {
+                when (matching.deleteProduct(product.id)) {
+                    DeleteProductResult.DELETED -> {
+                        // Refresh the suggestions now that the product is gone.
+                        val q = query.value
+                        query.value = ""
+                        query.value = q
+                        "« ${product.name} » supprimé du dictionnaire"
+                    }
+                    DeleteProductResult.IN_USE -> "« ${product.name} » est encore dans une liste : retirez-le d'abord"
+                    DeleteProductResult.NOT_ALLOWED -> "« ${product.name} » fait partie du dictionnaire de base"
+                }
+            } catch (e: Exception) {
+                "Suppression impossible"
+            }
+            messages.trySend(UiMessage(message))
+        }
     }
 
     /** Adds the typed name, or the tapped suggestion when [suggestion] is given. */

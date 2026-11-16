@@ -14,6 +14,7 @@ import com.kaddie.app.domain.model.ProductWithAliases
 import com.kaddie.app.domain.model.ShoppingItem
 import com.kaddie.app.domain.model.ShoppingList
 import com.kaddie.app.domain.model.ShoppingListSummary
+import com.kaddie.app.domain.repository.DeleteProductResult
 import com.kaddie.app.domain.repository.ProductDictionaryRepository
 import com.kaddie.app.domain.repository.ShoppingListRepository
 import com.kaddie.app.domain.repository.TransactionRunner
@@ -51,6 +52,13 @@ class RoomProductDictionaryRepository(
     }
 
     override suspend fun incrementUsage(productId: String) = dao.incrementUsage(productId, clock())
+
+    override suspend fun deleteUserProduct(productId: String): DeleteProductResult = db.withTransaction {
+        if (dao.countItemsUsing(productId) > 0) return@withTransaction DeleteProductResult.IN_USE
+        if (dao.deleteUserProduct(productId) == 0) return@withTransaction DeleteProductResult.NOT_ALLOWED
+        outbox.record(SyncOpType.PRODUCT_DELETE, productId)
+        DeleteProductResult.DELETED
+    }
 }
 
 class RoomShoppingListRepository(

@@ -116,6 +116,9 @@ interface KaddieApi {
     @PUT("products/{id}")
     suspend fun upsertProduct(@Path("id") id: String, @Body body: ProductBodyDto): Response<ProductDto>
 
+    @DELETE("products/{id}")
+    suspend fun deleteProduct(@Path("id") id: String): Response<Unit>
+
     @GET("templates")
     suspend fun getTemplates(): Response<List<TemplateDto>>
 

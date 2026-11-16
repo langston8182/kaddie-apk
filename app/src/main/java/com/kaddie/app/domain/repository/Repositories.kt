@@ -14,7 +14,12 @@ interface ProductDictionaryRepository {
     suspend fun findByKey(key: String): Product?
     suspend fun insert(product: Product, aliasKeys: List<String>)
     suspend fun incrementUsage(productId: String)
+
+    /** Deletes a personal product (never a built-in one) unless a list still uses it. */
+    suspend fun deleteUserProduct(productId: String): DeleteProductResult
 }
+
+enum class DeleteProductResult { DELETED, IN_USE, NOT_ALLOWED }
 
 interface ShoppingListRepository {
     fun observeSummaries(): Flow<List<ShoppingListSummary>>

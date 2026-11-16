@@ -56,6 +56,8 @@ class RetrofitShoppingRemoteDataSource(
     override suspend fun upsertProduct(id: String, name: String, category: ProductCategory) =
         call({ api.upsertProduct(id, ProductBodyDto(name, category.code)) }) { requireNotNull(it).toRemote() }
 
+    override suspend fun deleteProduct(id: String) = call({ api.deleteProduct(id) }) { }
+
     override suspend fun fetchTemplates() =
         call({ api.getTemplates() }) { body -> body.orEmpty().map { it.toRemote() } }
 

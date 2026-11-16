@@ -119,6 +119,7 @@ class SyncEngine(
             val product = store.getProduct(op.entityId)
             if (product == null) Step.Done else remote.upsertProduct(product.id, product.name, product.category).toStep()
         }
+        SyncOpType.PRODUCT_DELETE -> remote.deleteProduct(op.entityId).toStep(notFoundIsDone = true)
         SyncOpType.ITEM_DELETE ->
             remote.deleteItem(requireNotNull(op.parentId), op.entityId).toStep(notFoundIsDone = true)
         SyncOpType.ITEM_PURCHASED -> store.getItem(op.entityId)?.let { pushPurchased(it) } ?: Step.Done

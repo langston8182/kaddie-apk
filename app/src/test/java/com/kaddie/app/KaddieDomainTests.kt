@@ -46,6 +46,14 @@ class FakeDictionary(seed: List<Triple<String, ProductCategory, List<String>>>) 
     override suspend fun insert(product: Product, aliasKeys: List<String>) {
         products += ProductWithAliases(product, aliasKeys)
     }
+    override suspend fun deleteUserProduct(productId: String): com.kaddie.app.domain.repository.DeleteProductResult {
+        val p = products.firstOrNull { it.product.id == productId } ?: return com.kaddie.app.domain.repository.DeleteProductResult.NOT_ALLOWED
+        if (!p.product.isUserDefined) return com.kaddie.app.domain.repository.DeleteProductResult.NOT_ALLOWED
+        if (usedProductIds.contains(productId)) return com.kaddie.app.domain.repository.DeleteProductResult.IN_USE
+        products.remove(p)
+        return com.kaddie.app.domain.repository.DeleteProductResult.DELETED
+    }
+    val usedProductIds = mutableSetOf<String>()
     override suspend fun incrementUsage(productId: String) {
         val i = products.indexOfFirst { it.product.id == productId }
         products[i] = products[i].copy(product = products[i].product.copy(usageCount = products[i].product.usageCount + 1))
@@ -161,6 +169,22 @@ class MatchingTests {
         val s = ProductMatchingService(dict)
         s.createProduct("Yaourt") // e.g. created by a sync from a product unknown here
         assertEquals("Yaourt nature", (s.resolve("yaourt") as Resolution.Exact).product.name)
+    }
+
+    @Test fun aWronglyCreatedProductCanBeDeletedAndStopsBeingSuggested() = runBlocking {
+        val dict = FakeDictionary(seed)
+        val s = ProductMatchingService(dict)
+        val wrong = s.createProduct("Je veux trois avocats")
+        assertEquals("Je veux trois avocats", s.suggest("je v").first().product.name)
+
+        dict.usedProductIds += wrong.id
+        assertEquals(com.kaddie.app.domain.repository.DeleteProductResult.IN_USE, s.deleteProduct(wrong.id))
+        assertEquals(1, s.suggest("je v").size) // still used by a list: kept
+
+        dict.usedProductIds.clear()
+        assertEquals(com.kaddie.app.domain.repository.DeleteProductResult.DELETED, s.deleteProduct(wrong.id))
+        assertTrue(s.suggest("je v").isEmpty())
+        assertEquals(com.kaddie.app.domain.repository.DeleteProductResult.NOT_ALLOWED, s.deleteProduct("id-tomate")) // built-in products are protected
     }
 
     @Test fun unknownIsNotFoundAndCreationDeduplicates() = runBlocking {

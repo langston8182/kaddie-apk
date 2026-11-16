@@ -184,6 +184,7 @@ private class FakeServer : ShoppingRemoteDataSource {
     override suspend fun fetchProducts(updatedSince: Long?) = fail("fetchProducts") { productsToPull }
     override suspend fun upsertProduct(id: String, name: String, category: ProductCategory) =
         fail("upsertProduct") { RemoteProduct(id, name, category, 1, 1) }
+    override suspend fun deleteProduct(id: String) = fail("deleteProduct") { Unit }
     override suspend fun fetchTemplates() = fail("fetchTemplates") { emptyList<com.kaddie.app.data.remote.RemoteTemplate>() }
     override suspend fun upsertTemplate(id: String, name: String, items: List<com.kaddie.app.data.remote.RemoteTemplateItem>) =
         fail("upsertTemplate") { com.kaddie.app.data.remote.RemoteTemplate(id, name, items) }
@@ -409,6 +410,18 @@ class SyncEngineTests {
         store.enqueue(SyncOpType.ITEM_PURCHASED, "I1", "L1")
         engine.sync()
         assertTrue(server.items.getValue("I1").isPurchased)
+    }
+
+    @Test fun deletedProductIsDeletedOnTheServerAndAlreadyGoneIsFine() = runBlocking {
+        store.enqueue(SyncOpType.PRODUCT_DELETE, "p-gone")
+        assertEquals(SyncOutcome.DONE, engine.sync())
+        assertTrue(server.calls.contains("deleteProduct"))
+        assertEquals(SyncIssue.None, status.issue.value)
+
+        server.failures += "deleteProduct" to RemoteError.NotFound
+        store.enqueue(SyncOpType.PRODUCT_DELETE, "p-already-gone")
+        assertEquals(SyncOutcome.DONE, engine.sync())
+        assertTrue(store.ops.isEmpty())
     }
 
     @Test fun bulkListOperationsAreForwarded() = runBlocking {

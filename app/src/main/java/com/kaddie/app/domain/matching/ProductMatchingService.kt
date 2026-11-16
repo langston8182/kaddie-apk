@@ -3,6 +3,7 @@ package com.kaddie.app.domain.matching
 import com.kaddie.app.domain.model.Product
 import com.kaddie.app.domain.model.ProductCategory
 import com.kaddie.app.domain.model.ProductWithAliases
+import com.kaddie.app.domain.repository.DeleteProductResult
 import com.kaddie.app.domain.repository.ProductDictionaryRepository
 import com.kaddie.app.domain.text.EditDistance
 import com.kaddie.app.domain.text.TextNormalizer
@@ -154,6 +155,10 @@ class ProductMatchingService(
         invalidate()
         return product
     }
+
+    /** Removes a wrongly created personal product from the dictionary so it is no longer suggested. */
+    suspend fun deleteProduct(productId: String): DeleteProductResult =
+        dictionary.deleteUserProduct(productId).also { if (it == DeleteProductResult.DELETED) invalidate() }
 
     suspend fun recordUsage(productId: String) {
         dictionary.incrementUsage(productId)

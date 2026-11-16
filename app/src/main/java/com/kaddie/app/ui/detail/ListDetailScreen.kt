@@ -107,6 +107,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaddie.app.domain.model.MeasureUnit
+import com.kaddie.app.domain.model.Product
 import com.kaddie.app.domain.model.ProductCategory
 import com.kaddie.app.domain.model.ShoppingItem
 import com.kaddie.app.domain.sync.SyncUiState
@@ -492,6 +493,21 @@ private fun AddBar(viewModel: ListDetailViewModel, onVoice: () -> Unit) {
     val suggestions by viewModel.suggestions.collectAsStateWithLifecycle()
     val habitual by viewModel.habitual.collectAsStateWithLifecycle()
     val focus = remember { FocusRequester() }
+    var productToDelete by remember { mutableStateOf<Product?>(null) }
+
+    productToDelete?.let { product ->
+        AlertDialog(
+            onDismissRequest = { productToDelete = null },
+            title = { Text("Supprimer ce produit ?") },
+            text = { Text("« ${product.name} » ne sera plus proposé dans les suggestions. Les produits du dictionnaire de base ne peuvent pas être supprimés.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteProduct(product); productToDelete = null }) {
+                    Text("Supprimer", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { productToDelete = null }) { Text("Annuler") } },
+        )
+    }
 
     Surface(
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -514,18 +530,36 @@ private fun AddBar(viewModel: ListDetailViewModel, onVoice: () -> Unit) {
                         )
                     }
                     val products = if (suggestions.isNotEmpty()) suggestions.map { it.product } else habitual
+                    if (products.any { it.isUserDefined }) {
+                        Text(
+                            "Appui long sur un produit perso pour le supprimer",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp),
+                        )
+                    }
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(products, key = { it.id }) { product ->
-                            SuggestionChip(
-                                onClick = { viewModel.submit(product) },
+                            Surface(
                                 shape = CircleShape,
-                                border = null,
-                                colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                ),
-                                label = { Text("${ProductIcons.forName(product.name, product.category)}  ${product.name}") },
-                            )
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier
+                                    .heightIn(min = 40.dp)
+                                    .clip(CircleShape)
+                                    .combinedClickable(
+                                        onClickLabel = "Ajouter ${product.name}",
+                                        onClick = { viewModel.submit(product) },
+                                        onLongClickLabel = if (product.isUserDefined) "Supprimer ${product.name} du dictionnaire" else null,
+                                        onLongClick = if (product.isUserDefined) ({ productToDelete = product }) else null,
+                                    ),
+                            ) {
+                                Text(
+                                    "${ProductIcons.forName(product.name, product.category)}  ${product.name}",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                )
+                            }
                         }
                     }
                 }

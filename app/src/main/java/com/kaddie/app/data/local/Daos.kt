@@ -66,6 +66,13 @@ interface ProductDao {
     @Query("UPDATE dictionary_products SET usageCount = usageCount + 1, lastUsedAt = :now WHERE id = :id")
     suspend fun incrementUsage(id: String, now: Long)
 
+    @Query("SELECT COUNT(*) FROM shopping_items WHERE productId = :id")
+    suspend fun countItemsUsing(id: String): Int
+
+    /** Built-in dictionary products can never be deleted. */
+    @Query("DELETE FROM dictionary_products WHERE id = :id AND isUserDefined = 1")
+    suspend fun deleteUserProduct(id: String): Int
+
     @Query("SELECT * FROM dictionary_products WHERE id = :id")
     suspend fun findById(id: String): DictionaryProductEntity?
 
