@@ -51,10 +51,11 @@ interface TemplateRepository {
 
     /** Saves the products of a list (without their bought state) as a new template. */
     suspend fun saveFromList(listId: String, name: String): RemoteResult<ListTemplate>
+    suspend fun update(template: ListTemplate): RemoteResult<ListTemplate>
     suspend fun delete(templateId: String): RemoteResult<Unit>
 
-    /** Creates a new local list named [name] with the template's products, all "to buy"; returns its id. */
-    suspend fun createListFromTemplate(template: ListTemplate, name: String): String
+    /** Creates a new local list named [name] with the products of all [templates], all "to buy"; returns its id. */
+    suspend fun createListFromTemplates(templates: List<ListTemplate>, name: String): String
 }
 
 interface TransactionRunner {

@@ -1,6 +1,8 @@
 package com.kaddie.app.ui.detail
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -50,7 +53,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -86,6 +91,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -154,8 +160,12 @@ fun ListDetailScreen(
             Toast.makeText(context, "La reconnaissance vocale n'est pas disponible sur cet appareil", Toast.LENGTH_LONG).show()
         }
     }
+    var adding by rememberSaveable { mutableStateOf(false) }
+    val closeAdd = { adding = false; viewModel.onQueryChange("") }
+    BackHandler(enabled = adding, onBack = closeAdd)
     var menuOpen by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
+    var importing by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(viewModel) {
         viewModel.messageFlow.collect { message ->
@@ -204,14 +214,20 @@ fun ListDetailScreen(
                 actions = {
                     EnvironmentBadge()
                     SyncIndicator(syncState, onSyncNow)
-                    if (!listItems.isNullOrEmpty()) {
+                    if (listItems != null) {
+                        val hasItems = !listItems.isNullOrEmpty()
                         Box {
                             IconButton(onClick = { menuOpen = true }) {
                                 Icon(Icons.Filled.MoreVert, contentDescription = "Actions de la liste")
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 DropdownMenuItem(
+                                    text = { Text("Importer un modèle…") },
+                                    onClick = { menuOpen = false; importing = true },
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Partager la liste") },
+                                    enabled = hasItems,
                                     onClick = {
                                         menuOpen = false
                                         val text = ShareText.format(title, listItems.orEmpty(), categories, groupByCategory)
@@ -225,6 +241,7 @@ fun ListDetailScreen(
                                 )
                                 DropdownMenuItem(
                                     text = { Text(if (groupByCategory) "Afficher sans rayons" else "Regrouper par rayon") },
+                                    enabled = hasItems,
                                     onClick = { menuOpen = false; onGroupByCategory(!groupByCategory) },
                                 )
                                 DropdownMenuItem(
@@ -239,6 +256,7 @@ fun ListDetailScreen(
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Vider la liste") },
+                                    enabled = hasItems,
                                     onClick = { menuOpen = false; confirmClear = true },
                                 )
                             }
@@ -247,7 +265,21 @@ fun ListDetailScreen(
                 },
             )
         },
-        bottomBar = { AddBar(viewModel, onVoice = startVoice) },
+        bottomBar = { if (adding) AddBar(viewModel, onVoice = startVoice, onClose = closeAdd) },
+        floatingActionButton = {
+            if (!adding) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SmallFloatingActionButton(onClick = startVoice) {
+                        Icon(Icons.Filled.Mic, contentDescription = "Ajouter par la voix")
+                    }
+                    ExtendedFloatingActionButton(
+                        onClick = { adding = true },
+                        icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                        text = { Text("Ajouter") },
+                    )
+                }
+            }
+        },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
@@ -260,12 +292,12 @@ fun ListDetailScreen(
                     Text("🧺", fontSize = 56.sp)
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "Votre liste est vide.\nAjoutez un produit ci-dessous.",
+                        "Votre liste est vide.\nTouchez « Ajouter » pour ajouter un produit.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                else -> LazyColumn(contentPadding = PaddingValues(bottom = 8.dp)) {
+                else -> LazyColumn(contentPadding = PaddingValues(bottom = 88.dp)) {
                     val row: @Composable (ShoppingItem, Modifier) -> Unit = { item, modifier ->
                         ItemRow(
                             item = item,
@@ -314,6 +346,16 @@ fun ListDetailScreen(
                 }
             }
         }
+    }
+
+    if (importing) {
+        val templates by viewModel.templates.collectAsStateWithLifecycle()
+        ImportTemplatesDialog(
+            templates = templates,
+            onLoad = viewModel::refreshTemplates,
+            onDismiss = { importing = false },
+            onConfirm = { chosen -> importing = false; viewModel.importTemplates(chosen) },
+        )
     }
 
     if (confirmClear) {
@@ -486,7 +528,7 @@ private fun ItemRow(
 }
 
 @Composable
-private fun AddBar(viewModel: ListDetailViewModel, onVoice: () -> Unit) {
+private fun AddBar(viewModel: ListDetailViewModel, onVoice: () -> Unit, onClose: () -> Unit) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val quantity by viewModel.quantityText.collectAsStateWithLifecycle()
     val unit by viewModel.unit.collectAsStateWithLifecycle()
@@ -494,6 +536,7 @@ private fun AddBar(viewModel: ListDetailViewModel, onVoice: () -> Unit) {
     val habitual by viewModel.habitual.collectAsStateWithLifecycle()
     val focus = remember { FocusRequester() }
     var productToDelete by remember { mutableStateOf<Product?>(null) }
+    LaunchedEffect(Unit) { focus.requestFocus() }
 
     productToDelete?.let { product ->
         AlertDialog(
@@ -509,12 +552,29 @@ private fun AddBar(viewModel: ListDetailViewModel, onVoice: () -> Unit) {
         )
     }
 
+    var dragged = 0f
     Surface(
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         shadowElevation = 12.dp,
+        // Glisser vers le bas referme le panneau.
+        modifier = Modifier.pointerInput(Unit) {
+            detectVerticalDragGestures(
+                onDragStart = { dragged = 0f },
+                onDragEnd = { if (dragged > 60.dp.toPx()) onClose() },
+                onVerticalDrag = { _, delta -> dragged += delta },
+            )
+        },
     ) {
-        Column(Modifier.navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)) {
+        Column(Modifier.navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp)) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(bottom = 10.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.outlineVariant),
+            )
             AnimatedVisibility(
                 visible = suggestions.isNotEmpty() || habitual.isNotEmpty(),
                 enter = fadeIn(tween(120)) + expandVertically(tween(150)),

@@ -8,7 +8,13 @@ import com.kaddie.app.domain.model.MeasureUnit
 import com.kaddie.app.domain.model.Product
 import com.kaddie.app.domain.model.ProductCategory
 import com.kaddie.app.domain.model.ShoppingItem
+import com.kaddie.app.data.remote.RemoteError
+import com.kaddie.app.data.remote.RemoteResult
+import com.kaddie.app.data.repository.mergeTemplateItems
+import com.kaddie.app.domain.model.ListTemplate
 import com.kaddie.app.domain.repository.ShoppingListRepository
+import com.kaddie.app.domain.repository.TemplateRepository
+import com.kaddie.app.ui.lists.TemplatesState
 import com.kaddie.app.domain.repository.DeleteProductResult
 import com.kaddie.app.domain.usecase.AddItemRequest
 import com.kaddie.app.domain.usecase.AddItemResult
@@ -17,12 +23,12 @@ import com.kaddie.app.domain.usecase.ItemRules
 import com.kaddie.app.domain.usecase.UnitConflictResolution
 import com.kaddie.app.domain.voice.VoiceParser
 import com.kaddie.app.ui.components.formatQuantity
-import com.kaddie.app.ui.components.formatQuantityWithUnit
 import com.kaddie.app.ui.components.parseQuantity
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -50,6 +56,7 @@ class ListDetailViewModel(
     private val repository: ShoppingListRepository,
     private val matching: ProductMatchingService,
     private val addItem: AddShoppingListItemUseCase,
+    private val templateRepository: TemplateRepository,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
@@ -124,14 +131,14 @@ class ListDetailViewModel(
 
     fun deleteProduct(product: Product) {
         viewModelScope.launch {
-            val message = try {
+            val message: String? = try {
                 when (matching.deleteProduct(product.id)) {
                     DeleteProductResult.DELETED -> {
                         // Refresh the suggestions now that the product is gone.
                         val q = query.value
                         query.value = ""
                         query.value = q
-                        "« ${product.name} » supprimé du dictionnaire"
+                        null
                     }
                     DeleteProductResult.IN_USE -> "« ${product.name} » est encore dans une liste : retirez-le d'abord"
                     DeleteProductResult.NOT_ALLOWED -> "« ${product.name} » fait partie du dictionnaire de base"
@@ -139,7 +146,7 @@ class ListDetailViewModel(
             } catch (e: Exception) {
                 "Suppression impossible"
             }
-            messages.trySend(UiMessage(message))
+            if (message != null) messages.trySend(UiMessage(message))
         }
     }
 
@@ -181,20 +188,7 @@ class ListDetailViewModel(
         viewModelScope.launch {
             try {
                 when (val result = addItem(request)) {
-                    is AddItemResult.Added -> {
-                        resetForm()
-                        messages.trySend(UiMessage("${result.item.name} ajouté"))
-                    }
-                    is AddItemResult.Merged -> {
-                        resetForm()
-                        messages.trySend(
-                            UiMessage("${result.item.name} : ${formatQuantityWithUnit(result.item.quantity, result.item.unit)}"),
-                        )
-                    }
-                    is AddItemResult.Unchanged -> {
-                        resetForm()
-                        messages.trySend(UiMessage("${result.item.name} : quantité inchangée"))
-                    }
+                    is AddItemResult.Added, is AddItemResult.Merged, is AddItemResult.Unchanged -> resetForm()
                     is AddItemResult.NeedsCorrection ->
                         showPrompt(Prompt.Correction(result.request, result.candidates))
                     is AddItemResult.NeedsUnitDecision ->
@@ -215,31 +209,58 @@ class ListDetailViewModel(
             return
         }
         viewModelScope.launch {
-            val added = mutableListOf<String>()
-            var needsAnswer = 0
             for (item in spoken) {
                 try {
                     when (val result = addItem(AddItemRequest(listId, item.name, item.quantity, item.unit))) {
-                        is AddItemResult.Added -> added += result.item.name
-                        is AddItemResult.Merged -> added += result.item.name
-                        is AddItemResult.Unchanged -> added += result.item.name
-                        is AddItemResult.NeedsCorrection -> {
-                            needsAnswer++
-                            showPrompt(Prompt.Correction(result.request, result.candidates))
-                        }
-                        is AddItemResult.NeedsUnitDecision -> {
-                            needsAnswer++
-                            showPrompt(Prompt.UnitConflict(result.request, result.existing))
-                        }
-                        is AddItemResult.Invalid -> Unit
+                        is AddItemResult.NeedsCorrection -> showPrompt(Prompt.Correction(result.request, result.candidates))
+                        is AddItemResult.NeedsUnitDecision -> showPrompt(Prompt.UnitConflict(result.request, result.existing))
+                        is AddItemResult.Added, is AddItemResult.Merged, is AddItemResult.Unchanged, is AddItemResult.Invalid -> Unit
                     }
                 } catch (e: Exception) {
                     messages.trySend(UiMessage("Impossible d'ajouter ${item.name}"))
                 }
             }
-            if (added.isNotEmpty()) {
-                val summary = added.joinToString(", ")
-                messages.trySend(UiMessage(if (needsAnswer > 0) "Ajouté : $summary (à confirmer : $needsAnswer)" else "Ajouté : $summary"))
+        }
+    }
+
+    private val _templates = MutableStateFlow<TemplatesState>(TemplatesState.Idle)
+    val templates: StateFlow<TemplatesState> = _templates.asStateFlow()
+
+    /** Templates live on the server: they are fetched each time the import dialog opens. */
+    fun refreshTemplates() {
+        viewModelScope.launch {
+            _templates.value = TemplatesState.Loading
+            _templates.value = when (val result = templateRepository.list()) {
+                is RemoteResult.Success -> TemplatesState.Loaded(result.value)
+                is RemoteResult.Failure -> TemplatesState.Failed(
+                    when (result.error) {
+                        is RemoteError.Network -> "Connexion requise pour les modèles"
+                        RemoteError.Unauthorized -> "Connectez-vous pour utiliser les modèles"
+                        else -> "Les modèles sont momentanément indisponibles"
+                    },
+                )
+            }
+        }
+    }
+
+    /** Adds the products of the chosen templates to this list, merging with what is already there. */
+    fun importTemplates(selected: List<ListTemplate>) {
+        val templateItems = mergeTemplateItems(selected)
+        if (templateItems.isEmpty()) {
+            messages.trySend(UiMessage("Ces modèles sont vides"))
+            return
+        }
+        viewModelScope.launch {
+            for (t in templateItems) {
+                try {
+                    when (val result = addItem(AddItemRequest(listId, t.name, t.quantity, t.unit, t.note, productId = t.productId))) {
+                        is AddItemResult.NeedsCorrection -> showPrompt(Prompt.Correction(result.request, result.candidates))
+                        is AddItemResult.NeedsUnitDecision -> showPrompt(Prompt.UnitConflict(result.request, result.existing))
+                        is AddItemResult.Added, is AddItemResult.Merged, is AddItemResult.Unchanged, is AddItemResult.Invalid -> Unit
+                    }
+                } catch (e: Exception) {
+                    messages.trySend(UiMessage("Impossible d'ajouter ${t.name}"))
+                }
             }
         }
     }
@@ -261,31 +282,22 @@ class ListDetailViewModel(
 
     fun togglePinned(item: ShoppingItem) = launchSafely("Modification impossible") {
         repository.updateItem(ItemRules.withPinned(item, !item.isPinned, clock()))
-        messages.trySend(UiMessage(if (item.isPinned) "${item.name} désépinglé" else "${item.name} épinglé en haut"))
     }
 
     fun delete(item: ShoppingItem) = launchSafely("Suppression impossible") {
         repository.deleteItem(item.id)
-        messages.trySend(
-            UiMessage("${item.name} supprimé", "Annuler") {
-                launchSafely("Restauration impossible") { repository.insertItem(item); repository.touchList(listId) }
-            },
-        )
     }
 
     fun clearAll() = launchSafely("Impossible de vider la liste") {
         repository.clearItems(listId)
-        messages.trySend(UiMessage("Liste vidée"))
     }
 
     fun clearPurchased() = launchSafely("Opération impossible") {
         repository.clearPurchasedItems(listId)
-        messages.trySend(UiMessage("Produits achetés retirés"))
     }
 
     fun uncheckAll() = launchSafely("Opération impossible") {
         repository.uncheckAllItems(listId)
-        messages.trySend(UiMessage("Tous les produits sont à acheter"))
     }
 
     private fun launchSafely(error: String, block: suspend () -> Unit) {

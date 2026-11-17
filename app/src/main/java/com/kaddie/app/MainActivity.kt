@@ -27,6 +27,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kaddie.app.ui.detail.ListDetailScreen
 import com.kaddie.app.ui.detail.ListDetailViewModel
+import com.kaddie.app.ui.templates.TemplatesScreen
+import com.kaddie.app.ui.templates.TemplatesViewModel
 import com.kaddie.app.ui.lists.ListsScreen
 import com.kaddie.app.ui.lists.ListsViewModel
 import com.kaddie.app.ui.theme.KaddieTheme
@@ -103,7 +105,14 @@ private fun KaddieNavHost(container: AppContainer) {
                 onThemeMode = container.settings::setThemeMode,
                 onDynamicColor = container.settings::setDynamicColor,
                 onOpenList = { id -> navController.navigate("list/$id") },
+                onOpenTemplates = { navController.navigate("templates") },
             )
+        }
+        composable("templates") {
+            val vm: TemplatesViewModel = viewModel(
+                factory = viewModelFactory { initializer { TemplatesViewModel(container.templates, container.matching) } },
+            )
+            TemplatesScreen(viewModel = vm, onBack = { navController.popBackStack() })
         }
         composable(
             route = "list/{listId}",
@@ -113,7 +122,7 @@ private fun KaddieNavHost(container: AppContainer) {
             val vm: ListDetailViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer {
-                        ListDetailViewModel(listId, container.shoppingLists, container.matching, container.addItem)
+                        ListDetailViewModel(listId, container.shoppingLists, container.matching, container.addItem, container.templates)
                     }
                 },
             )

@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -38,6 +39,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -91,6 +93,7 @@ fun ListsScreen(
     onThemeMode: (ThemeMode) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
     onOpenList: (String) -> Unit,
+    onOpenTemplates: () -> Unit = {},
 ) {
     val summaries by viewModel.summaries.collectAsStateWithLifecycle()
     val templates by viewModel.templates.collectAsStateWithLifecycle()
@@ -112,6 +115,9 @@ fun ListsScreen(
                 actions = {
                     EnvironmentBadge()
                     SyncIndicator(syncState, onSyncNow)
+                    IconButton(onClick = onOpenTemplates) {
+                        Icon(Icons.Filled.Bookmarks, contentDescription = "Modèles")
+                    }
                     IconButton(onClick = { showSettings = true }) {
                         Icon(Icons.Filled.Settings, contentDescription = "Apparence")
                     }
@@ -165,9 +171,9 @@ fun ListsScreen(
             onLoadTemplates = viewModel::refreshTemplates,
             onDeleteTemplate = viewModel::deleteTemplate,
             onDismiss = { showCreate = false },
-            onConfirm = { name, template ->
+            onConfirm = { name, selectedTemplates ->
                 showCreate = false
-                if (template != null) viewModel.createFromTemplate(template, name, onOpenList)
+                if (selectedTemplates.isNotEmpty()) viewModel.createFromTemplates(selectedTemplates, name, onOpenList)
                 else viewModel.createList(name, onOpenList)
             },
         )
@@ -332,12 +338,12 @@ private fun NameDialog(
     onLoadTemplates: () -> Unit = {},
     onDeleteTemplate: (String) -> Unit = {},
     onDismiss: () -> Unit,
-    onConfirm: (name: String, template: ListTemplate?) -> Unit,
+    onConfirm: (name: String, templates: List<ListTemplate>) -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf(initialName) }
-    var templateId by rememberSaveable { mutableStateOf<String?>(null) }
+    var templateIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
     val loaded = (templates as? TemplatesState.Loaded)?.templates.orEmpty()
-    val selected = loaded.firstOrNull { it.id == templateId }
+    val selected = loaded.filter { it.id in templateIds }
     val focus = remember { FocusRequester() }
     val valid = name.isNotBlank()
     LaunchedEffect(Unit) {
@@ -380,13 +386,13 @@ private fun NameDialog(
                 }
                 if (loaded.isNotEmpty()) {
                     Text(
-                        "Partir d'un modèle",
+                        "Partir d'un ou plusieurs modèles",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
                     )
                     loaded.forEach { template ->
-                        val isSelected = template.id == templateId
+                        val isSelected = template.id in templateIds
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -394,12 +400,13 @@ private fun NameDialog(
                                 .clip(MaterialTheme.shapes.small)
                                 .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
                                 .clickable {
-                                    templateId = if (isSelected) null else template.id
+                                    templateIds = if (isSelected) templateIds - template.id else templateIds + template.id
                                     if (!isSelected && name.isBlank()) name = template.name
                                 }
-                                .padding(start = 12.dp),
+                                .padding(start = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            Checkbox(checked = isSelected, onCheckedChange = null, modifier = Modifier.padding(end = 8.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(template.name, style = MaterialTheme.typography.bodyLarge)
                                 Text(
@@ -409,7 +416,7 @@ private fun NameDialog(
                                 )
                             }
                             IconButton(onClick = {
-                                if (isSelected) templateId = null
+                                templateIds = templateIds - template.id
                                 onDeleteTemplate(template.id)
                             }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Supprimer le modèle ${template.name}")

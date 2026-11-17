@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "categories": [
     {
       "id": "fruits_legumes",
@@ -27,7 +27,7 @@
     {
       "id": "viandes_poissons",
       "products": [
-        "Poulet|poulet entier", "Blanc de poulet|filet de poulet|escalope de poulet", "Cuisse de poulet", "Pilon de poulet", "Aile de poulet", "Poulet rôti",
+        "Chair à saucisse","Poulet|poulet entier", "Blanc de poulet|filet de poulet|escalope de poulet", "Cuisse de poulet", "Pilon de poulet", "Aile de poulet", "Poulet rôti",
         "Dinde", "Escalope de dinde", "Filet de dinde", "Cuisse de dinde", "Canard", "Magret de canard", "Confit de canard", "Cuisse de canard", "Foie gras",
         "Lapin", "Veau", "Escalope de veau", "Blanquette de veau", "Rôti de veau", "Côte de veau", "Osso buco", "Boeuf|bœuf", "Steak haché|steack haché",
         "Steak", "Entrecôte", "Faux-filet|faux filet", "Rumsteck|rumsteak", "Bavette", "Onglet", "Filet de boeuf", "Rôti de boeuf", "Boeuf bourguignon",

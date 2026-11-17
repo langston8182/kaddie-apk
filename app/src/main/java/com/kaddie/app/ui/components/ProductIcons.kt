@@ -6,7 +6,7 @@ import com.kaddie.app.domain.text.TextNormalizer
 /** Emoji pictograms for products, resolved from keywords in the name (most specific first). */
 object ProductIcons {
     private val keywords: List<Pair<String, String>> = listOf(
-        "pomme de terre" to "🥔", "patate" to "🥠", "tomate" to "🍅", "carotte" to "🥕", "oignon" to "🧅", "ail" to "🧄",
+        "chair a saucisse" to "🥩", "pomme de terre" to "🥔", "patate" to "🥠", "tomate" to "🍅", "carotte" to "🥕", "oignon" to "🧅", "ail" to "🧄",
         "poivron" to "🫑", "piment" to "🌶️", "concombre" to "🥒", "courgette" to "🥒", "aubergine" to "🍆", "brocoli" to "🥦",
         "salade" to "🥬", "epinard" to "🥬", "mache" to "🥬", "chou" to "🥬", "mais" to "🌽", "champignon" to "🍄",
         "avocat" to "🥑", "citron" to "🍋", "orange" to "🍊", "clementine" to "🍊", "mandarine" to "🍊", "pomme" to "🍎",

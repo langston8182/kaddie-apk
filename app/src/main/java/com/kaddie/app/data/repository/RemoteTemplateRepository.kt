@@ -43,9 +43,17 @@ class RemoteTemplateRepository(
         return remote.upsertTemplate(UUID.randomUUID().toString(), name.trim(), items).map { it.toDomain() }
     }
 
+    override suspend fun update(template: ListTemplate): RemoteResult<ListTemplate> =
+        remote.upsertTemplate(
+            template.id,
+            template.name.trim(),
+            template.items.map { RemoteTemplateItem(it.productId, it.name, it.quantity, it.unit, it.note) },
+        ).map { it.toDomain() }
+
     override suspend fun delete(templateId: String): RemoteResult<Unit> = remote.deleteTemplate(templateId)
 
-    override suspend fun createListFromTemplate(template: ListTemplate, name: String): String {
+    override suspend fun createListFromTemplates(templates: List<ListTemplate>, name: String): String {
+        val items = mergeTemplateItems(templates)
         var productCreated = false
         val listId = db.withTransaction {
             val now = clock()
@@ -53,7 +61,7 @@ class RemoteTemplateRepository(
             lists.insertList(list)
             outbox.record(SyncOpType.LIST_UPSERT, list.id)
             val used = mutableSetOf<String>()
-            template.items.forEachIndexed { index, t ->
+            items.forEachIndexed { index, t ->
                 val (productId, created) = ensureProduct(t) ?: return@forEachIndexed
                 if (created) productCreated = true
                 if (!used.add(productId)) return@forEachIndexed
@@ -102,6 +110,17 @@ class RemoteTemplateRepository(
         outbox.record(SyncOpType.PRODUCT_UPSERT, item.productId)
         return item.productId to true
     }
+}
+
+/** Concatenates the templates' products; a product present in several templates appears once, quantities summed when the unit matches. */
+internal fun mergeTemplateItems(templates: List<ListTemplate>): List<TemplateItem> {
+    val merged = LinkedHashMap<String, TemplateItem>()
+    templates.flatMap { it.items }.forEach { item ->
+        val existing = merged[item.productId]
+        merged[item.productId] =
+            if (existing != null && existing.unit == item.unit) existing.copy(quantity = existing.quantity + item.quantity) else existing ?: item
+    }
+    return merged.values.toList()
 }
 
 private fun RemoteTemplate.toDomain() =

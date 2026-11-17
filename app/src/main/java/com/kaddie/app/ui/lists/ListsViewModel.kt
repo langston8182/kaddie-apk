@@ -51,8 +51,8 @@ class ListsViewModel(
         }
     }
 
-    fun createFromTemplate(template: ListTemplate, name: String, onCreated: (String) -> Unit) =
-        launchSafely("Création impossible") { onCreated(templateRepository.createListFromTemplate(template, name)) }
+    fun createFromTemplates(templates: List<ListTemplate>, name: String, onCreated: (String) -> Unit) =
+        launchSafely("Création impossible") { onCreated(templateRepository.createListFromTemplates(templates, name)) }
 
     fun saveAsTemplate(listId: String, name: String) {
         viewModelScope.launch {
@@ -90,12 +90,10 @@ class ListsViewModel(
 
     fun delete(listId: String) = launchSafely("Suppression impossible") {
         repository.deleteList(listId)
-        messages.trySend("Liste supprimée")
     }
 
     fun duplicate(listId: String) = launchSafely("Duplication impossible") {
         repository.duplicateList(listId)
-        messages.trySend("Liste dupliquée")
     }
 
     private fun launchSafely(error: String, block: suspend () -> Unit) {
